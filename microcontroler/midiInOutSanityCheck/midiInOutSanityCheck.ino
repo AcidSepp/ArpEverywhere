@@ -12,36 +12,37 @@ const int MIDI_TX_PIN = 17;
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial, MIDI);
 
 void setup() {
-  pinMode(LED_BUILTIN, OUTPUT);
+    pinMode(LED_BUILTIN, OUTPUT);
 
-  // Explicitly configure UART0 on GPIO3 (RX) / GPIO1 (TX) at MIDI baud rate (31250)
-  Serial.begin(31250, SERIAL_8N1, MIDI_RX_PIN, MIDI_TX_PIN);
+    // Explicitly configure UART0 on GPIO3 (RX) / GPIO1 (TX) at MIDI baud rate (31250)
+    Serial.begin(31250, SERIAL_8N1, MIDI_RX_PIN, MIDI_TX_PIN);
 
-  MIDI.begin(MIDI_CHANNEL_OMNI);
+    MIDI.begin(MIDI_CHANNEL_OMNI);
+    MIDI.turnThruOff();
 
-  digitalWrite(LED_BUILTIN, LOW);
-
-  for (int i = 0; i < 5; i++) {
-    delay(100);
-    digitalWrite(LED_BUILTIN, HIGH);
-    delay(100);
     digitalWrite(LED_BUILTIN, LOW);
-  }
 
-  MIDI.setHandleNoteOn(noteOn);
-  MIDI.setHandleNoteOff(noteOff);
+    for (int i = 0; i < 5; i++) {
+        delay(100);
+        digitalWrite(LED_BUILTIN, HIGH);
+        delay(100);
+        digitalWrite(LED_BUILTIN, LOW);
+    }
+
+    MIDI.setHandleNoteOn(noteOn);
+    MIDI.setHandleNoteOff(noteOff);
 }
 
 void loop() {
-  MIDI.read();
+    MIDI.read();
 }
 
 void noteOn(const byte channel, const byte note, const byte velocity) {
-  digitalWrite(LED_BUILTIN, HIGH);
-  // MIDI.sendNoteOn(note, velocity, channel);
+    digitalWrite(LED_BUILTIN, HIGH);
+    MIDI.sendNoteOn(note, velocity, channel);
 }
 
 void noteOff(const byte channel, const byte note, const byte velocity) {
-  digitalWrite(LED_BUILTIN, LOW);
+    digitalWrite(LED_BUILTIN, LOW);
     MIDI.sendNoteOff(note, velocity, channel);
 }

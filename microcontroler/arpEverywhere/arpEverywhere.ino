@@ -24,6 +24,7 @@ void setup() {
     Serial.begin(31250, SERIAL_8N1, MIDI_RX_PIN, MIDI_TX_PIN);
 
     MIDI.begin(MIDI_CHANNEL_OMNI);
+    MIDI.turnThruOff();
 
     digitalWrite(LED_BUILTIN, LOW);
 

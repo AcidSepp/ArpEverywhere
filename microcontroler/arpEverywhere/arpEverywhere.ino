@@ -11,35 +11,61 @@ const int MIDI_TX_PIN = 17;
 // explicitly on GPIO3/GPIO1 in setup() instead of relying on MIDI.begin() defaults.
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial, MIDI);
 
+int notesPressed[127];
+
 void setup() {
-  pinMode(LED_BUILTIN, OUTPUT);
+    for (int i = 0; i < 127; i++) {
+        notesPressed[i] = 0;
+    }
 
-  // Explicitly configure UART0 on GPIO3 (RX) / GPIO1 (TX) at MIDI baud rate (31250)
-  Serial.begin(31250, SERIAL_8N1, MIDI_RX_PIN, MIDI_TX_PIN);
+    pinMode(LED_BUILTIN, OUTPUT);
 
-  MIDI.begin(MIDI_CHANNEL_OMNI);
+    // Explicitly configure UART0 on GPIO3 (RX) / GPIO1 (TX) at MIDI baud rate (31250)
+    Serial.begin(31250, SERIAL_8N1, MIDI_RX_PIN, MIDI_TX_PIN);
 
-  digitalWrite(LED_BUILTIN, LOW);
+    MIDI.begin(MIDI_CHANNEL_OMNI);
 
-  for (int i = 0; i < 5; i++) {
-    delay(100);
-    digitalWrite(LED_BUILTIN, HIGH);
-    delay(100);
     digitalWrite(LED_BUILTIN, LOW);
-  }
 
-  MIDI.setHandleNoteOn(noteOn);
-  MIDI.setHandleNoteOff(noteOff);
+    for (int i = 0; i < 5; i++) {
+        delay(100);
+        digitalWrite(LED_BUILTIN, HIGH);
+        delay(100);
+        digitalWrite(LED_BUILTIN, LOW);
+    }
+
+    MIDI.setHandleNoteOn(noteOn);
+    MIDI.setHandleNoteOff(noteOff);
 }
 
 void loop() {
-  MIDI.read();
+    MIDI.read();
+}
+
+bool notesPressedIsEmpty() {
+    for (int i = 0; i < 127; i++) {
+        if (notesPressed[i] == 1) {
+            return false;
+        }
+    }
+    return true;
 }
 
 void noteOn(const byte channel, const byte note, const byte velocity) {
-  digitalWrite(LED_BUILTIN, HIGH);
+//     if (notesPressedIsEmpty()) {
+//         for (int i = 0; i < 127; i++) {
+//             MIDI.sendNoteOff(i, velocity, channel);
+//         }
+//     }
+
+    notesPressed[note] = 1;
+
+    digitalWrite(LED_BUILTIN, HIGH);
+    //MIDI.sendNoteOn(note, velocity, channel);
 }
 
 void noteOff(const byte channel, const byte note, const byte velocity) {
-  digitalWrite(LED_BUILTIN, LOW);
+    notesPressed[note] = 0;
+    digitalWrite(LED_BUILTIN, LOW);
 }
+

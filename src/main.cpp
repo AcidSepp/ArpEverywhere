@@ -1,12 +1,13 @@
 #include <MIDI.h>
 
-const int LED_BUILTIN = 2;
-
 // !!!!The midi library uses the PIN Number not the GPIO Number!!!!
 const int MIDI_RX_PIN = 16;
 const int MIDI_TX_PIN = 17;
 
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial, MIDI);
+
+void noteOn(byte channel, byte note, byte velocity);
+void noteOff(byte channel, byte note, byte velocity);
 
 int notesPressed = 0;
 

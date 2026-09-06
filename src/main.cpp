@@ -12,11 +12,18 @@ constexpr byte CHANNEL = 1;
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
 
 static void noteOn(byte channel, byte note, byte velocity);
+
 static void noteOff(byte channel, byte note, byte velocity);
+
+static void handleClock();
 
 static set<int> pressedNotes;
 static set<int> sustainedNotes;
 static bool holdFunctionActivated;
+static bool arpFunctionActivated = true;
+static int clockCounter = 0;
+static int lastArpNote = 0;
+static int arpIndex = 0;
 
 void setup() {
     Serial.begin(9600);
@@ -26,6 +33,7 @@ void setup() {
     MIDI.turnThruOff();
     MIDI.setHandleNoteOn(noteOn);
     MIDI.setHandleNoteOff(noteOff);
+    MIDI.setHandleClock(handleClock);
 
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
@@ -85,14 +93,18 @@ void loop() {
 }
 
 void noteOn(const byte channel, const byte note, const byte velocity) {
-    MIDI.sendNoteOn(note, velocity, CHANNEL);
+    // if the arp is active, the note will be played automatically, so we need to prevent retriggers in that case
+    if (!arpFunctionActivated) {
+        MIDI.sendNoteOn(note, velocity, CHANNEL);
+    }
 
     // the user is entering a new chord
     if (pressedNotes.empty()) {
-        for (const int sustainedNote: sustainedNotes)
+        for (const int sustainedNote: sustainedNotes) {
             if (sustainedNote != note) {
                 MIDI.sendNoteOff(sustainedNote, velocity, CHANNEL);
             }
+        }
         sustainedNotes.clear();
     }
     pressedNotes.insert(note);
@@ -107,4 +119,36 @@ void noteOff(const byte channel, const byte note, const byte velocity) {
         sustainedNotes.erase(note);
     }
     pressedNotes.erase(note);
+}
+
+static void handleClock() {
+    if (clockCounter == 0) {
+        Serial.println("Quarter Note!");
+
+        Serial.printf("Sustained Notes: %d\n", sustainedNotes.size());
+
+        if (!sustainedNotes.empty()) {
+            int currentLoopIndex = 0;
+            if (arpIndex >= sustainedNotes.size()) {
+                arpIndex = 0;
+            }
+
+            Serial.printf("arpIndex: %d\n", arpIndex);
+
+            // This is O(n) every quarter note. I know this can be improved by using a better data structure, but hey.
+            for (const int sustainedNote: sustainedNotes) {
+                if (currentLoopIndex == arpIndex) {
+                    // Note Off needs to go first, in order to retrigger the note, if it is the only one sustained
+                    MIDI.sendNoteOff(lastArpNote, 127, CHANNEL);
+
+                    MIDI.sendNoteOn(sustainedNote, 127, CHANNEL);
+                    lastArpNote = sustainedNote;
+                }
+                currentLoopIndex++;
+            }
+
+            arpIndex++;
+        }
+    }
+    clockCounter = (clockCounter + 1) % 24;
 }

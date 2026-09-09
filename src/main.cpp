@@ -1,5 +1,6 @@
 #include <MIDI.h>
 #include <set>
+#include "rotarySwitch.h"
 
 using namespace std;
 
@@ -7,6 +8,7 @@ using namespace std;
 constexpr int MIDI_RX_PIN = 16;
 constexpr int MIDI_TX_PIN = 17;
 constexpr int HOLD_ON_OFF_SWITCH_PIN = 22;
+constexpr int ROTARY_SWITCH_PIN = 32;
 constexpr byte CHANNEL = 1;
 
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
@@ -52,6 +54,8 @@ void setup() {
         holdFunctionActivated = false;
         digitalWrite(LED_BUILTIN, LOW);
     }
+
+    pinMode(ROTARY_SWITCH_PIN, INPUT);
 }
 
 void loop() {

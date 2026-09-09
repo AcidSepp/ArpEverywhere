@@ -11,6 +11,7 @@ constexpr int MIDI_TX_PIN = 17;
 constexpr int HOLD_ON_OFF_SWITCH_PIN = 22;
 constexpr int ROTARY_SWITCH_PIN = 35;
 constexpr byte CHANNEL = 1;
+constexpr bool DEBUG = true;
 
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
 
@@ -69,7 +70,9 @@ void loop() {
         holdFunctionActivated = true;
         digitalWrite(LED_BUILTIN, HIGH);
 
-        Serial.println("Switching Hold function ON");
+        if (DEBUG) {
+            Serial.println("Switching Hold function ON");
+        }
 
         // add a little delay, to debounce the HOLD button
         delay(50);
@@ -90,7 +93,9 @@ void loop() {
         }
         sustainedNotes.clear();
 
-        Serial.println("Switching Hold function OFF");
+        if (DEBUG) {
+            Serial.println("Switching Hold function OFF");
+        }
         // add a little delay, to debounce the HOLD button
         delay(50);
     }
@@ -116,7 +121,9 @@ void noteOn(const byte channel, const byte note, const byte velocity) {
     pressedNotes.insert(note);
     sustainedNotes.insert(note);
 
-    Serial.printf("Sustained Notes: %d\n", sustainedNotes.size());
+    if (DEBUG) {
+        Serial.printf("Sustained Notes: %d\n", sustainedNotes.size());
+    }
 }
 
 void noteOff(const byte channel, const byte note, const byte velocity) {
@@ -129,8 +136,10 @@ void noteOff(const byte channel, const byte note, const byte velocity) {
 
 static void handleClock() {
     if (clockCounter == 0) {
-        Serial.println("Quarter Note!");
-        Serial.printf("Sustained Notes: %d\n", sustainedNotes.size());
+        if (DEBUG) {
+            Serial.println("Quarter Note!");
+            Serial.printf("Sustained Notes: %d\n", sustainedNotes.size());
+        }
 
         if (!sustainedNotes.empty()) {
             int currentLoopIndex = 0;
@@ -158,7 +167,10 @@ static void handleClock() {
     if (clockCounter % _1_32 == 0) {
         const int sensorValue = analogRead(ROTARY_SWITCH_PIN);
         pulsesPerNote = rotarySwitchNumberToSubdivision(getRotarySwitchNumber(sensorValue));
-        Serial.printf("pulsesPerNote: %d\n", pulsesPerNote);
+
+        if (DEBUG) {
+            Serial.printf("pulsesPerNote: %d\n", pulsesPerNote);
+        }
     }
     clockCounter = (clockCounter + 1) % pulsesPerNote;
 }

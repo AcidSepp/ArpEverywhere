@@ -1,6 +1,6 @@
 #include "subdivision.h"
 
-Subdivision rotarySwitchNumberToSubdivision(const int rotarySwitchNumber) {
+TimeDivision rotarySwitchNumberToSubdivision(const int rotarySwitchNumber) {
     switch (rotarySwitchNumber) {
         case 0:
             return _2_1;

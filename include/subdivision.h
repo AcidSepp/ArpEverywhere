@@ -5,6 +5,10 @@
 #ifndef ARPEVERYWHERE_SUBDEVISION_H
 #define ARPEVERYWHERE_SUBDEVISION_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
     _2_1 = 192,
     _1_1 = 96,
@@ -13,8 +17,12 @@ typedef enum {
     _1_8 = 12,
     _1_16 = 6,
     _1_32 = 3,
-} Subdivision;
+} TimeDivision;
 
-Subdivision rotarySwitchNumberToSubdivision(int rotarySwitchNumber);
+TimeDivision rotarySwitchNumberToSubdivision(int rotarySwitchNumber);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //ARPEVERYWHERE_SUBDEVISION_H

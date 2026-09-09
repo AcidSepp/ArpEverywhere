@@ -1,6 +1,7 @@
 #include <MIDI.h>
 #include <set>
 #include "rotarySwitch.h"
+#include "subdivision.h"
 
 using namespace std;
 
@@ -8,7 +9,7 @@ using namespace std;
 constexpr int MIDI_RX_PIN = 16;
 constexpr int MIDI_TX_PIN = 17;
 constexpr int HOLD_ON_OFF_SWITCH_PIN = 22;
-constexpr int ROTARY_SWITCH_PIN = 32;
+constexpr int ROTARY_SWITCH_PIN = 35;
 constexpr byte CHANNEL = 1;
 
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
@@ -26,6 +27,7 @@ static bool arpFunctionActivated = true;
 static int clockCounter = 0;
 static int lastArpNote = 0;
 static int arpIndex = 0;
+static TimeDivision pulsesPerNote = _1_4;
 
 void setup() {
     Serial.begin(9600);
@@ -128,7 +130,6 @@ void noteOff(const byte channel, const byte note, const byte velocity) {
 static void handleClock() {
     if (clockCounter == 0) {
         Serial.println("Quarter Note!");
-
         Serial.printf("Sustained Notes: %d\n", sustainedNotes.size());
 
         if (!sustainedNotes.empty()) {
@@ -154,5 +155,10 @@ static void handleClock() {
             arpIndex++;
         }
     }
-    clockCounter = (clockCounter + 1) % 24;
+    if (clockCounter % _1_32 == 0) {
+        const int sensorValue = analogRead(ROTARY_SWITCH_PIN);
+        pulsesPerNote = rotarySwitchNumberToSubdivision(getRotarySwitchNumber(sensorValue));
+        Serial.printf("pulsesPerNote: %d\n", pulsesPerNote);
+    }
+    clockCounter = (clockCounter + 1) % pulsesPerNote;
 }

@@ -1,6 +1,6 @@
 #include "rotarySwitch.h"
 
-static int getRotarySwitchNumber(const int sensorValue) {
+int getRotarySwitchNumber(const int sensorValue) {
     if (sensorValue < 150) {
         return 0;
     }

@@ -1,7 +1,7 @@
 #include <MIDI.h>
 #include <set>
 
-constexpr int ROTARY_SWITCH_PIN = 32;
+constexpr int ROTARY_SWITCH_PIN = 35;
 
 void setup() {
     Serial.begin(9600);

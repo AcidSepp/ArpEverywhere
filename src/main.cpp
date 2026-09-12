@@ -165,8 +165,8 @@ static void handleClock() {
         }
     }
 
-    // Read the rotary switch every 1/32 note, as this is the smallest subdivision we support
-    if (clockCounter % _1_32 == 0) {
+    // Read the rotary switch every 1/4 note, this should suffice in accuracy
+    if (clockCounter % _1_4 == 0) {
         const int sensorValue = analogRead(ROTARY_SWITCH_PIN);
         pulsesPerNote = rotarySwitchNumberToSubdivision(getRotarySwitchNumber(sensorValue));
 
@@ -175,6 +175,6 @@ static void handleClock() {
         }
     }
 
-    // the clock counter needs to stay in range between 0 and a double whole note, as this is the biggest subdivision we support
-    clockCounter = (clockCounter + 1) % _2_1;
+    // the clock counter needs to stay in range between 0 and 32 quarter notes, as this is the biggest subdivision we support
+    clockCounter = (clockCounter + 1) % _32_4;
 }

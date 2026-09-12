@@ -1,7 +1,7 @@
 #include <MIDI.h>
 #include <set>
 #include "rotarySwitch.h"
-#include "subdivision.h"
+#include "timedivision.h"
 
 using namespace std;
 
@@ -135,35 +135,37 @@ void noteOff(const byte channel, const byte note, const byte velocity) {
 }
 
 static void handleClock() {
-    if (clockCounter == 0) {
+    if (clockCounter % pulsesPerNote == 0) {
         if (DEBUG) {
             Serial.println("Quarter Note!");
             Serial.printf("Sustained Notes: %d\n", sustainedNotes.size());
         }
 
         if (!sustainedNotes.empty()) {
-            int currentLoopIndex = 0;
             if (arpIndex >= sustainedNotes.size()) {
                 arpIndex = 0;
             }
 
             Serial.printf("arpIndex: %d\n", arpIndex);
 
+            int index = 0;
             // This is O(n) every quarter note. I know this can be improved by using a better data structure, but hey.
             for (const int sustainedNote: sustainedNotes) {
-                if (currentLoopIndex == arpIndex) {
+                if (index == arpIndex) {
                     // Note Off needs to go first, in order to retrigger the note, if it is the only one sustained
                     MIDI.sendNoteOff(lastArpNote, 127, CHANNEL);
 
                     MIDI.sendNoteOn(sustainedNote, 127, CHANNEL);
                     lastArpNote = sustainedNote;
                 }
-                currentLoopIndex++;
+                index++;
             }
 
             arpIndex++;
         }
     }
+
+    // Read the rotary switch every 1/32 note, as this is the smallest subdivision we support
     if (clockCounter % _1_32 == 0) {
         const int sensorValue = analogRead(ROTARY_SWITCH_PIN);
         pulsesPerNote = rotarySwitchNumberToSubdivision(getRotarySwitchNumber(sensorValue));
@@ -172,5 +174,7 @@ static void handleClock() {
             Serial.printf("pulsesPerNote: %d\n", pulsesPerNote);
         }
     }
-    clockCounter = (clockCounter + 1) % pulsesPerNote;
+
+    // the clock counter needs to stay in range between 0 and a double whole note, as this is the biggest subdivision we support
+    clockCounter = (clockCounter + 1) % _2_1;
 }

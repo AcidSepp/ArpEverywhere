@@ -1,4 +1,4 @@
-#include "subdivision.h"
+#include "timedivision.h"
 
 TimeDivision rotarySwitchNumberToSubdivision(const int rotarySwitchNumber) {
     switch (rotarySwitchNumber) {

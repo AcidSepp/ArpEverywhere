@@ -105,7 +105,8 @@ void loop() {
 
 void noteOn(const byte channel, const byte note, const byte velocity) {
     // if the arp is active, the note will be played automatically, so we need to prevent retriggers in that case
-    if (!arpFunctionActivated) {
+    // In very slow arp speeds it would take a long time until the note sounds, so we play the first not anyways.
+    if (!arpFunctionActivated || pressedNotes.empty()) {
         MIDI.sendNoteOn(note, velocity, CHANNEL);
     }
 
@@ -149,12 +150,12 @@ static void handleClock() {
             Serial.printf("arpIndex: %d\n", arpIndex);
 
             int index = 0;
-            // This is O(n) every quarter note. I know this can be improved by using a better data structure, but hey.
             for (const int sustainedNote: sustainedNotes) {
-                if (index == arpIndex) {
-                    // Note Off needs to go first, in order to retrigger the note, if it is the only one sustained
-                    MIDI.sendNoteOff(lastArpNote, 127, CHANNEL);
+                // we send all note offs here, to avoid stuck notes, when arp is switched on
+                // Note Off needs to go first, in order to retrigger the note, if it is the only one sustained
+                MIDI.sendNoteOff(lastArpNote, 127, CHANNEL);
 
+                if (index == arpIndex) {
                     MIDI.sendNoteOn(sustainedNote, 127, CHANNEL);
                     lastArpNote = sustainedNote;
                 }

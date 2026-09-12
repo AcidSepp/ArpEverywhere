@@ -15,8 +15,11 @@ typedef enum {
     _1_2 = 48,
     _1_4 = 24,
     _1_8 = 12,
+    _1_8T = 8,
     _1_16 = 6,
+    _1_16T = 4,
     _1_32 = 3,
+    _1_32T = 2,
 } TimeDivision;
 
 TimeDivision rotarySwitchNumberToSubdivision(int rotarySwitchNumber);

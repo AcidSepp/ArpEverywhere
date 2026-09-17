@@ -1,15 +1,18 @@
+#include <SoftwareSerial.h>
 #include <MIDI.h>
 
-const int LED_BUILTIN = 2;
+const int MIDI_RX_PIN = 2;
+const int MIDI_TX_PIN = 3;
 
-// !!!!The midi library uses the Pin Number not the GPIO Number!!!!
-const int MIDI_RX_PIN = 16;
-const int MIDI_TX_PIN = 17;
+SoftwareSerial midiSerial(MIDI_RX_PIN, MIDI_TX_PIN);
 
-MIDI_CREATE_INSTANCE(HardwareSerial, Serial, MIDI);
+MIDI_CREATE_INSTANCE(SoftwareSerial, midiSerial, MIDI);
 
 void setup() {
-    Serial.begin(31250, SERIAL_8N1, MIDI_RX_PIN, MIDI_TX_PIN);
+
+    pinMode(MIDI_RX_PIN, INPUT);
+
+    midiSerial.begin(31250);
     MIDI.begin(MIDI_CHANNEL_OMNI);
     MIDI.turnThruOff();
     MIDI.setHandleNoteOn(noteOn);

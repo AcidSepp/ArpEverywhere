@@ -1,8 +1,8 @@
-#include <MIDI.h>
-
-constexpr int HOLD_ON_OFF_SWITCH_PIN = 22;
+constexpr int HOLD_ON_OFF_SWITCH_PIN = 4;
 
 void setup() {
+    Serial.begin(9600);
+
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
     for (int i = 0; i < 5; i++) {
@@ -11,6 +11,8 @@ void setup() {
         delay(100);
         digitalWrite(LED_BUILTIN, LOW);
     }
+
+    pinMode(HOLD_ON_OFF_SWITCH_PIN, INPUT);
 }
 
 void loop() {

@@ -16,9 +16,16 @@ static void noteOff(byte channel, byte note, byte velocity);
 
 static bool pressedNotes[127];
 static bool sustainedNotes[127];
-static int pressedNotesCount = 0;
-static int sustainedNotesCount = 0;
 static bool holdFunctionActivated;
+
+static bool pressedNotesEmpty() {
+    for (const bool pressedNote : pressedNotes) {
+        if (pressedNote) {
+            return false;
+        }
+    }
+    return true;
+}
 
 static void printSustainedNotes() {
     Serial.print("Sustained Notes:");
@@ -49,7 +56,6 @@ static void noteOffForAllExceptPressed() {
         }
         sustainedNotes[i] = false;
     }
-    sustainedNotesCount = 0;
 }
 
 void setup() {
@@ -124,7 +130,7 @@ void noteOn(const byte channel, const byte note, const byte velocity) {
     MIDI.sendNoteOn(note, velocity, CHANNEL);
 
     // the user is entering a new chord
-    if (pressedNotesCount == 0) {
+    if (pressedNotesEmpty()) {
         for (int i = 0; i < 127; i++) {
             if (sustainedNotes[i] && note != i) {
                 Serial.print("Sending Note OFF: ");
@@ -133,37 +139,21 @@ void noteOn(const byte channel, const byte note, const byte velocity) {
             }
             sustainedNotes[i] = false;
         }
-        sustainedNotesCount = 0;
     }
     pressedNotes[note] = true;
     sustainedNotes[note] = true;
-    sustainedNotesCount++;
-    pressedNotesCount++;
 
-    Serial.print("Sustained Notes: ");
-    Serial.println(sustainedNotesCount);
-    Serial.print("Pressed Notes: ");
-    Serial.println(pressedNotesCount);
+    printSustainedNotes();
+    printPressedNotes();
 }
 
 void noteOff(const byte channel, const byte note, const byte velocity) {
     if (!holdFunctionActivated) {
         MIDI.sendNoteOff(note, velocity, CHANNEL);
-        sustainedNotes[note] = true;
-        sustainedNotesCount--;
+        sustainedNotes[note] = false;
     }
     pressedNotes[note] = false;
-    pressedNotesCount--;
 
-    Serial.print("Sustained Notes: ");
-    Serial.println(sustainedNotesCount);
-    Serial.print("Pressed Notes: ");
-    Serial.println(pressedNotesCount);
-
-    if (pressedNotesCount < 0) {
-        pressedNotesCount = 0;
-    }
-    if (sustainedNotesCount < 0) {
-        sustainedNotesCount = 0;
-    }
+    printSustainedNotes();
+    printPressedNotes();
 }

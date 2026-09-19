@@ -5,6 +5,7 @@ constexpr int MIDI_RX_PIN = 2;
 constexpr int MIDI_TX_PIN = 3;
 constexpr int HOLD_ON_OFF_SWITCH_PIN = 4;
 constexpr byte CHANNEL = 1;
+constexpr boolean DEBUG = true;
 
 SoftwareSerial midiSerial(MIDI_RX_PIN, MIDI_TX_PIN);
 
@@ -14,12 +15,14 @@ static void noteOn(byte channel, byte note, byte velocity);
 
 static void noteOff(byte channel, byte note, byte velocity);
 
-static bool pressedNotes[127];
-static bool sustainedNotes[127];
+constexpr int NOTES_ARRAY_SIZE = 128;
+
+static bool pressedNotes[NOTES_ARRAY_SIZE];
+static bool sustainedNotes[NOTES_ARRAY_SIZE];
 static bool holdFunctionActivated;
 
 static bool pressedNotesEmpty() {
-    for (const bool pressedNote : pressedNotes) {
+    for (const bool pressedNote: pressedNotes) {
         if (pressedNote) {
             return false;
         }
@@ -29,7 +32,7 @@ static bool pressedNotesEmpty() {
 
 static void printSustainedNotes() {
     Serial.print("Sustained Notes:");
-    for (int i = 0; i < 127; i++) {
+    for (int i = 0; i < NOTES_ARRAY_SIZE; i++) {
         if (sustainedNotes[i]) {
             Serial.print(i);
             Serial.print(" ");
@@ -40,7 +43,7 @@ static void printSustainedNotes() {
 
 static void printPressedNotes() {
     Serial.print("Pressed Notes:");
-    for (int i = 0; i < 127; i++) {
+    for (int i = 0; i < NOTES_ARRAY_SIZE; i++) {
         if (pressedNotes[i]) {
             Serial.print(i);
             Serial.print(" ");
@@ -50,7 +53,7 @@ static void printPressedNotes() {
 }
 
 static void noteOffForAllExceptPressed() {
-    for (int i = 0; i < 127; i++) {
+    for (int i = 0; i < NOTES_ARRAY_SIZE; i++) {
         if (!pressedNotes[i]) {
             MIDI.sendNoteOff(i, 0, CHANNEL);
         }
@@ -113,9 +116,10 @@ void loop() {
         holdFunctionActivated = false;
         digitalWrite(LED_BUILTIN, LOW);
 
-        printSustainedNotes();
-        printPressedNotes();
-
+        if (DEBUG) {
+            printSustainedNotes();
+            printPressedNotes();
+        }
         noteOffForAllExceptPressed();
 
         Serial.println("Switching Hold function OFF");
@@ -127,14 +131,21 @@ void loop() {
 }
 
 void noteOn(const byte channel, const byte note, const byte velocity) {
+    if (DEBUG) {
+        Serial.print("Note ON: ");
+        Serial.println(note);
+    }
+
     MIDI.sendNoteOn(note, velocity, CHANNEL);
 
     // the user is entering a new chord
     if (pressedNotesEmpty()) {
-        for (int i = 0; i < 127; i++) {
+        for (int i = 0; i < NOTES_ARRAY_SIZE; i++) {
             if (sustainedNotes[i] && note != i) {
-                Serial.print("Sending Note OFF: ");
-                Serial.println(i);
+                if (DEBUG) {
+                    Serial.print("Sending Note OFF: ");
+                    Serial.println(i);
+                }
                 MIDI.sendNoteOff(i, 0, CHANNEL);
             }
             sustainedNotes[i] = false;
@@ -143,17 +154,26 @@ void noteOn(const byte channel, const byte note, const byte velocity) {
     pressedNotes[note] = true;
     sustainedNotes[note] = true;
 
-    printSustainedNotes();
-    printPressedNotes();
+    if (DEBUG) {
+        printSustainedNotes();
+        printPressedNotes();
+    }
 }
 
 void noteOff(const byte channel, const byte note, const byte velocity) {
+    if (DEBUG) {
+        Serial.print("Note OFF: ");
+        Serial.println(note);
+    }
+
     if (!holdFunctionActivated) {
         MIDI.sendNoteOff(note, velocity, CHANNEL);
         sustainedNotes[note] = false;
     }
     pressedNotes[note] = false;
 
-    printSustainedNotes();
-    printPressedNotes();
+    if (DEBUG) {
+        printSustainedNotes();
+        printPressedNotes();
+    }
 }

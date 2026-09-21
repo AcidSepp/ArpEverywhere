@@ -6,9 +6,9 @@
 using namespace std;
 
 // !!!!The midi library uses the PIN Number not the GPIO Number!!!!
-constexpr int MIDI_RX_PIN = 16;
-constexpr int MIDI_TX_PIN = 17;
-constexpr int HOLD_ON_OFF_SWITCH_PIN = 22;
+constexpr int MIDI_RX_PIN = 2;
+constexpr int MIDI_TX_PIN = 3;
+constexpr int HOLD_ON_OFF_SWITCH_PIN = 4;
 constexpr int ROTARY_SWITCH_PIN = 35;
 constexpr byte CHANNEL = 1;
 constexpr bool DEBUG = true;
@@ -26,7 +26,6 @@ static set<int> sustainedNotes;
 static bool holdFunctionActivated;
 static bool arpFunctionActivated = true;
 static int clockCounter = 0;
-static int lastArpNote = 0;
 static int arpIndex = 0;
 static TimeDivision pulsesPerNote = _1_4;
 
@@ -153,11 +152,10 @@ static void handleClock() {
             for (const int sustainedNote: sustainedNotes) {
                 // we send all note offs here, to avoid stuck notes, when arp is switched on
                 // Note Off needs to go first, in order to retrigger the note, if it is the only one sustained
-                MIDI.sendNoteOff(lastArpNote, 127, CHANNEL);
+                MIDI.sendNoteOff(sustainedNote, 127, CHANNEL);
 
                 if (index == arpIndex) {
                     MIDI.sendNoteOn(sustainedNote, 127, CHANNEL);
-                    lastArpNote = sustainedNote;
                 }
                 index++;
             }
@@ -167,14 +165,14 @@ static void handleClock() {
     }
 
     // Read the rotary switch every 1/4 note, this should suffice in accuracy
-    if (clockCounter % _1_4 == 0) {
-        const int sensorValue = analogRead(ROTARY_SWITCH_PIN);
-        pulsesPerNote = rotarySwitchNumberToSubdivision(getRotarySwitchNumber(sensorValue));
-
-        if (DEBUG) {
-            Serial.printf("pulsesPerNote: %d\n", pulsesPerNote);
-        }
-    }
+    // if (clockCounter % _1_4 == 0) {
+    //     const int sensorValue = analogRead(ROTARY_SWITCH_PIN);
+    //     pulsesPerNote = rotarySwitchNumberToSubdivision(getRotarySwitchNumber(sensorValue));
+    //
+    //     if (DEBUG) {
+    //         Serial.printf("pulsesPerNote: %d\n", pulsesPerNote);
+    //     }
+    // }
 
     // the clock counter needs to stay in range between 0 and 32 quarter notes, as this is the biggest subdivision we support
     clockCounter = (clockCounter + 1) % _32_4;

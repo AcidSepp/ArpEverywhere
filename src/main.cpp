@@ -38,7 +38,7 @@ static void handleClock();
 static set<int> pressedNotes;
 static set<int> sustainedNotes;
 static bool holdFunctionActivated;
-static bool arpFunctionActivated = true;
+static bool arpActivated = true;
 static int clockCounter = 0;
 static int arpIndex = 0;
 static TimeDivision timeDivision = _1_4;
@@ -75,20 +75,40 @@ void setup() {
     if (digitalRead(HOLD_ON_OFF_SWITCH_PIN) == HIGH) {
         holdFunctionActivated = true;
         digitalWrite(LED_BUILTIN, HIGH);
+        Serial.println("Hold: ON");
     } else {
         holdFunctionActivated = false;
         digitalWrite(LED_BUILTIN, LOW);
+        Serial.println("Hold: OFF");
     }
 
     pinMode(TIME_DIVISION_ROTARY_SWITCH_PIN, INPUT);
     pinMode(PATTERN_ROTARY_SWITCH_PIN, INPUT);
 
-    pinMode(HOLD_ON_OFF_SWITCH_PIN, INPUT);
-    pinMode(CLOCK_SRC_SWITCH_PIN, INPUT);
     pinMode(ARP_ON_OFF_SWITCH_PIN, INPUT);
+    if (digitalRead(ARP_ON_OFF_SWITCH_PIN) == HIGH) {
+        arpActivated = true;
+        Serial.println("Arp: ON");
+    } else {
+        arpActivated = false;
+        Serial.println("Arp: OFF");
+    }
+
+    pinMode(CLOCK_SRC_SWITCH_PIN, INPUT);
     pinMode(MIDI_1_THRU_ON_OFF_SWITCH_PIN, INPUT);
 
     Serial.println("Started!");
+}
+
+static void clearAllSustainedNotesExceptPressed() {
+    for (const int sustainedNote: sustainedNotes) {
+        if (!pressedNotes.count(sustainedNote)) {
+            Serial.printf("Sending Note OFF: %d\n", sustainedNote);
+            MIDI1.sendNoteOff(sustainedNote, 0, CHANNEL);
+        } else {
+            Serial.printf("Not sending Note OFF: %d\n", sustainedNote);
+        }
+    }
 }
 
 void loop() {
@@ -104,7 +124,7 @@ void loop() {
             Serial.println("Switching Hold function ON");
         }
 
-        // add a little delay, to debounce the HOLD button
+        // add a little delay, to debounce the HOLD switch
         delay(50);
     }
 
@@ -113,20 +133,52 @@ void loop() {
         holdFunctionActivated = false;
         digitalWrite(LED_BUILTIN, LOW);
 
-        for (const int sustainedNote: sustainedNotes) {
-            if (!pressedNotes.count(sustainedNote)) {
-                Serial.printf("Sending Note OFF: %d\n", sustainedNote);
-                MIDI1.sendNoteOff(sustainedNote, 0, CHANNEL);
-            } else {
-                Serial.printf("Not sending Note OFF: %d\n", sustainedNote);
-            }
-        }
+        clearAllSustainedNotesExceptPressed();
         sustainedNotes.clear();
 
         if (DEBUG) {
             Serial.println("Switching Hold function OFF");
         }
-        // add a little delay, to debounce the HOLD button
+        // add a little delay, to debounce the HOLD switch
+        delay(50);
+    }
+
+    const bool oldArpState = arpActivated;
+    const bool newArpState = digitalRead(ARP_ON_OFF_SWITCH_PIN) == HIGH;
+
+    // arp was off and is now on
+    if (!oldArpState && newArpState) {
+        clockCounter = 0;
+        arpActivated = true;
+
+        if (DEBUG) {
+            Serial.println("Switching Arp ON");
+        }
+        // add a little delay, to debounce the ARP switch
+        delay(50);
+    }
+
+    // arp was on and is now off
+    if (oldArpState && !newArpState) {
+        clockCounter = 0;
+        arpActivated = false;
+
+        clearAllSustainedNotesExceptPressed();
+
+        if (holdFunctionActivated) {
+            for (const int sustainedNote : sustainedNotes) {
+                MIDI1.sendNoteOn(sustainedNote, 127, CHANNEL);
+            }
+        } else {
+            for (const int pressedNote : pressedNotes) {
+                MIDI1.sendNoteOn(pressedNote, 127, CHANNEL);
+            }
+        }
+
+        if (DEBUG) {
+            Serial.println("Switching Arp OFF");
+        }
+        // add a little delay, to debounce the ARP switch
         delay(50);
     }
 
@@ -137,7 +189,7 @@ void loop() {
 void noteOn(const byte channel, const byte note, const byte velocity) {
     // if the arp is active, the note will be played automatically, so we need to prevent retriggers in that case
     // In very slow arp speeds it would take a long time until the note sounds, so we play the first not anyways.
-    if (!arpFunctionActivated || pressedNotes.empty()) {
+    if (!arpActivated || pressedNotes.empty()) {
         MIDI1.sendNoteOn(note, velocity, CHANNEL);
     }
 
@@ -167,6 +219,10 @@ void noteOff(const byte channel, const byte note, const byte velocity) {
 }
 
 static void handleClock() {
+    if (!arpActivated) {
+        return;
+    }
+
     if (clockCounter % timeDivision == 0) {
         if (DEBUG) {
             Serial.println("Quarter Note!");
@@ -203,7 +259,6 @@ static void handleClock() {
         if (newPattern != pattern) {
             pattern = newPattern;
             Serial.printf("Pattern: %s\n", patternToString(pattern));
-            delay(50);
         }
 
         const TimeDivision newTimeDivision =
@@ -211,7 +266,6 @@ static void handleClock() {
         if (newTimeDivision != timeDivision) {
             timeDivision = newTimeDivision;
             Serial.printf("TimeDivision: %s\n", timeDivisionToString(timeDivision));
-            delay(50);
         }
     }
 

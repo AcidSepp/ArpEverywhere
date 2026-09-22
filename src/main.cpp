@@ -44,6 +44,37 @@ static int arpIndex = 0;
 static TimeDivision timeDivision = _1_4;
 static Pattern pattern = UP;
 static bool clockFromMidi1 = true;
+static bool midi1Thru = false;
+
+static void sendNoteOn(const byte note, const byte velocity, const byte channel) {
+    if (!midi1Thru) {
+        MIDI1.sendNoteOn(note, velocity, channel);
+    }
+    MIDI2.sendNoteOn(note, velocity, channel);
+}
+
+static void sendNoteOff(const byte note, const byte velocity, const byte channel) {
+    if (!midi1Thru) {
+        MIDI1.sendNoteOff(note, velocity, channel);
+    }
+    MIDI2.sendNoteOff(note, velocity, channel);
+}
+
+static void midi1AllNotesOff() {
+    for (int channel = 0; channel < 11; ++channel) {
+        for (int note = 0; note < 128; ++note) {
+            MIDI1.sendNoteOff(note, 0, channel);
+        }
+    }
+}
+
+static void midi2AllNotesOff() {
+    for (int channel = 0; channel < 11; ++channel) {
+        for (int note = 0; note < 128; ++note) {
+            MIDI2.sendNoteOff(note, 0, channel);
+        }
+    }
+}
 
 void setup() {
     Serial.begin(9600);
@@ -51,15 +82,27 @@ void setup() {
 
     MidiSerial1.begin(31250, SERIAL_8N1, MIDI_1_RX_PIN, MIDI_1_TX_PIN);
     MIDI1.begin(MIDI_CHANNEL_OMNI);
-    MIDI1.turnThruOff();
     MIDI1.setHandleNoteOn(noteOn);
     MIDI1.setHandleNoteOff(noteOff);
+
+    pinMode(MIDI_1_THRU_ON_OFF_SWITCH_PIN, INPUT);
+    if (digitalRead(MIDI_1_THRU_ON_OFF_SWITCH_PIN) == HIGH) {
+        midi1Thru = true;
+        Serial.println("MIDI 1 Thru: ON");
+        MIDI1.turnThruOn();
+    } else {
+        midi1Thru = false;
+        Serial.println("MIDI 1 Thru: OFF");
+        MIDI1.turnThruOff();
+    }
+    midi1AllNotesOff();
 
     MidiSerial2.begin(31250, SERIAL_8N1, MIDI_2_RX_PIN, MIDI_2_TX_PIN);
     MIDI2.begin(MIDI_CHANNEL_OMNI);
     MIDI2.turnThruOff();
     MIDI2.setHandleNoteOn(noteOn);
     MIDI2.setHandleNoteOff(noteOff);
+    midi2AllNotesOff();
 
     pinMode(CLOCK_SRC_SWITCH_PIN, INPUT);
     if (digitalRead(CLOCK_SRC_SWITCH_PIN) == HIGH) {
@@ -106,8 +149,6 @@ void setup() {
         Serial.println("Arp: OFF");
     }
 
-    pinMode(MIDI_1_THRU_ON_OFF_SWITCH_PIN, INPUT);
-
     Serial.println("Started!");
 }
 
@@ -115,7 +156,7 @@ static void clearAllSustainedNotesExceptPressed() {
     for (const int sustainedNote: sustainedNotes) {
         if (!pressedNotes.count(sustainedNote)) {
             Serial.printf("Sending Note OFF: %d\n", sustainedNote);
-            MIDI1.sendNoteOff(sustainedNote, 0, CHANNEL);
+            sendNoteOff(sustainedNote, 0, CHANNEL);
         } else {
             Serial.printf("Not sending Note OFF: %d\n", sustainedNote);
         }
@@ -203,11 +244,11 @@ void loop() {
 
         if (holdFunctionActivated) {
             for (const int sustainedNote : sustainedNotes) {
-                MIDI1.sendNoteOn(sustainedNote, 127, CHANNEL);
+                sendNoteOn(sustainedNote, 127, CHANNEL);
             }
         } else {
             for (const int pressedNote : pressedNotes) {
-                MIDI1.sendNoteOn(pressedNote, 127, CHANNEL);
+                sendNoteOn(pressedNote, 127, CHANNEL);
             }
         }
 
@@ -218,6 +259,24 @@ void loop() {
         delay(50);
     }
 
+    const bool oldMidi1Thru = midi1Thru;
+    const bool newMidi1Thru = digitalRead(MIDI_1_THRU_ON_OFF_SWITCH_PIN) == HIGH;
+
+    // MIDI 1 Thru was off and is now on
+    if (!oldMidi1Thru && newMidi1Thru) {
+        midi1AllNotesOff();
+        midi1Thru = true;
+        Serial.println("MIDI 1 Thru: ON");
+        MIDI1.turnThruOn();
+    }
+
+    // MIDI 1 Thru was on in is now off
+    if (oldMidi1Thru && !newMidi1Thru) {
+        midi1Thru = false;
+        Serial.println("MIDI 1 Thru: OFF");
+        MIDI1.turnThruOff();
+    }
+
     MIDI1.read();
     MIDI2.read();
 }
@@ -226,14 +285,14 @@ void noteOn(const byte channel, const byte note, const byte velocity) {
     // if the arp is active, the note will be played automatically, so we need to prevent retriggers in that case
     // In very slow arp speeds it would take a long time until the note sounds, so we play the first not anyways.
     if (!arpActivated || pressedNotes.empty()) {
-        MIDI1.sendNoteOn(note, velocity, CHANNEL);
+        sendNoteOn(note, velocity, CHANNEL);
     }
 
     // the user is entering a new chord
     if (pressedNotes.empty()) {
         for (const int sustainedNote: sustainedNotes) {
             if (sustainedNote != note) {
-                MIDI1.sendNoteOff(sustainedNote, velocity, CHANNEL);
+                sendNoteOff(sustainedNote, velocity, CHANNEL);
             }
         }
         sustainedNotes.clear();
@@ -248,7 +307,7 @@ void noteOn(const byte channel, const byte note, const byte velocity) {
 
 void noteOff(const byte channel, const byte note, const byte velocity) {
     if (!holdFunctionActivated) {
-        MIDI1.sendNoteOff(note, velocity, CHANNEL);
+        sendNoteOff(note, velocity, CHANNEL);
         sustainedNotes.erase(note);
     }
     pressedNotes.erase(note);
@@ -261,7 +320,7 @@ static void handleClock() {
 
     if (clockCounter % timeDivision == 0) {
         if (DEBUG) {
-            Serial.println("Quarter Note!");
+            Serial.println("Arp Pulse!");
             Serial.printf("Sustained Notes: %d\n", sustainedNotes.size());
         }
 
@@ -270,16 +329,18 @@ static void handleClock() {
                 arpIndex = 0;
             }
 
-            Serial.printf("arpIndex: %d\n", arpIndex);
+            if (DEBUG) {
+                Serial.printf("arpIndex: %d\n", arpIndex);
+            }
 
             int index = 0;
             for (const int sustainedNote: sustainedNotes) {
                 // we send all note offs here, to avoid stuck notes, when arp is switched on
                 // Note Off needs to go first, in order to retrigger the note, if it is the only one sustained
-                MIDI1.sendNoteOff(sustainedNote, 127, CHANNEL);
+                sendNoteOff(sustainedNote, 127, CHANNEL);
 
                 if (index == arpIndex) {
-                    MIDI1.sendNoteOn(sustainedNote, 127, CHANNEL);
+                    sendNoteOn(sustainedNote, 127, CHANNEL);
                 }
                 index++;
             }

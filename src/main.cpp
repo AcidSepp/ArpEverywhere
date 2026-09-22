@@ -43,6 +43,7 @@ static int clockCounter = 0;
 static int arpIndex = 0;
 static TimeDivision timeDivision = _1_4;
 static Pattern pattern = UP;
+static bool clockFromMidi1 = true;
 
 void setup() {
     Serial.begin(9600);
@@ -53,14 +54,25 @@ void setup() {
     MIDI1.turnThruOff();
     MIDI1.setHandleNoteOn(noteOn);
     MIDI1.setHandleNoteOff(noteOff);
-    MIDI1.setHandleClock(handleClock);
 
     MidiSerial2.begin(31250, SERIAL_8N1, MIDI_2_RX_PIN, MIDI_2_TX_PIN);
     MIDI2.begin(MIDI_CHANNEL_OMNI);
     MIDI2.turnThruOff();
     MIDI2.setHandleNoteOn(noteOn);
     MIDI2.setHandleNoteOff(noteOff);
-    MIDI1.setHandleClock(handleClock);
+
+    pinMode(CLOCK_SRC_SWITCH_PIN, INPUT);
+    if (digitalRead(CLOCK_SRC_SWITCH_PIN) == HIGH) {
+        clockFromMidi1 = true;
+        Serial.println("Clock Source: MIDI 1");
+        MIDI1.setHandleClock(handleClock);
+        MIDI2.setHandleClock(nullptr);
+    } else {
+        clockFromMidi1 = false;
+        Serial.println("Clock Source: MIDI 2");
+        MIDI1.setHandleClock(nullptr);
+        MIDI2.setHandleClock(handleClock);
+    }
 
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
@@ -94,7 +106,6 @@ void setup() {
         Serial.println("Arp: OFF");
     }
 
-    pinMode(CLOCK_SRC_SWITCH_PIN, INPUT);
     pinMode(MIDI_1_THRU_ON_OFF_SWITCH_PIN, INPUT);
 
     Serial.println("Started!");
@@ -112,6 +123,31 @@ static void clearAllSustainedNotesExceptPressed() {
 }
 
 void loop() {
+    const bool oldClockFromMidi1 = clockFromMidi1;
+    const bool newClockFromMidi1 = digitalRead(CLOCK_SRC_SWITCH_PIN) == HIGH;
+
+    // midi 2 was the clock source and now midi 1 is the clock source
+    if (!oldClockFromMidi1 && newClockFromMidi1) {
+        clockFromMidi1 = true;
+        Serial.println("Clock Source: MIDI 1");
+        MIDI1.setHandleClock(handleClock);
+        MIDI2.setHandleClock(nullptr);
+
+        // add a little delay, to debounce the clock source switch
+        delay(50);
+    }
+
+    // midi 1 was the clock source and now midi 2 is the clock source
+    if (oldClockFromMidi1 && !newClockFromMidi1) {
+        clockFromMidi1 = false;
+        Serial.println("Clock Source: MIDI 2");
+        MIDI1.setHandleClock(nullptr);
+        MIDI2.setHandleClock(handleClock);
+
+        // add a little delay, to debounce the clock source switch
+        delay(50);
+    }
+
     const bool oldHoldFunctionState = holdFunctionActivated;
     const bool newHoldFunctionState = digitalRead(HOLD_ON_OFF_SWITCH_PIN) == HIGH;
 

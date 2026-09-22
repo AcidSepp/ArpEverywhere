@@ -1,12 +1,8 @@
 #include <MIDI.h>
-#include <set>
 #include "rotarySwitch.h"
 #include "timedivision.h"
 #include "pattern.h"
 
-using namespace std;
-
-// !!!!The midi library uses the PIN Number not the GPIO Number!!!!
 constexpr int MIDI_1_RX_PIN = 2;
 constexpr int MIDI_1_TX_PIN = 3;
 constexpr int MIDI_2_RX_PIN = 4;
@@ -35,8 +31,12 @@ static void noteOff(byte channel, byte note, byte velocity);
 
 static void handleClock();
 
-static set<int> pressedNotes;
-static set<int> sustainedNotes;
+constexpr int NOTES_ARRAY_SIZE = 128;
+
+static bool pressedNotes[NOTES_ARRAY_SIZE];
+static int pressedNotesCount = 0;
+static bool sustainedNotes[NOTES_ARRAY_SIZE];
+static int sustainedNotesCount = 0;
 static bool holdFunctionActivated;
 static bool arpActivated = true;
 static int clockCounter = 0;
@@ -46,7 +46,56 @@ static Pattern pattern = UP;
 static bool clockFromMidi1 = true;
 static bool midi1Thru = false;
 
+static bool pressedNotesEmpty() {
+    for (const bool pressedNote: pressedNotes) {
+        if (pressedNote) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool sustainedNotesEmpty() {
+    for (const bool sustainedNote: sustainedNotes) {
+        if (sustainedNote) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static void clearSustainedNotes() {
+    for (bool & sustainedNote : sustainedNotes) {
+        sustainedNote = false;
+    }
+}
+
+static void printSustainedNotes() {
+    Serial.printf("Sustained Notes (%d): ", sustainedNotesCount);
+    for (int i = 0; i < NOTES_ARRAY_SIZE; i++) {
+        if (sustainedNotes[i]) {
+            Serial.print(i);
+            Serial.print(" ");
+        }
+    }
+    Serial.println();
+}
+
+static void printPressedNotes() {
+    Serial.printf("Pressed Notes (%d): ", pressedNotesCount);
+    for (int i = 0; i < NOTES_ARRAY_SIZE; i++) {
+        if (pressedNotes[i]) {
+            Serial.print(i);
+            Serial.print(" ");
+        }
+    }
+    Serial.println();
+}
+
 static void sendNoteOn(const byte note, const byte velocity, const byte channel) {
+    if (DEBUG) {
+        Serial.printf("NOTE ON: n=%d\n", note);
+    }
     if (!midi1Thru) {
         MIDI1.sendNoteOn(note, velocity, channel);
     }
@@ -54,6 +103,9 @@ static void sendNoteOn(const byte note, const byte velocity, const byte channel)
 }
 
 static void sendNoteOff(const byte note, const byte velocity, const byte channel) {
+    if (DEBUG) {
+        Serial.printf("NOTE OFF: n=%d\n", note);
+    }
     if (!midi1Thru) {
         MIDI1.sendNoteOff(note, velocity, channel);
     }
@@ -100,8 +152,6 @@ void setup() {
     MidiSerial2.begin(31250, SERIAL_8N1, MIDI_2_RX_PIN, MIDI_2_TX_PIN);
     MIDI2.begin(MIDI_CHANNEL_OMNI);
     MIDI2.turnThruOff();
-    MIDI2.setHandleNoteOn(noteOn);
-    MIDI2.setHandleNoteOff(noteOff);
     midi2AllNotesOff();
 
     pinMode(CLOCK_SRC_SWITCH_PIN, INPUT);
@@ -154,7 +204,7 @@ void setup() {
 
 static void clearAllSustainedNotesExceptPressed() {
     for (const int sustainedNote: sustainedNotes) {
-        if (!pressedNotes.count(sustainedNote)) {
+        if (!pressedNotes[sustainedNote]) {
             Serial.printf("Sending Note OFF: %d\n", sustainedNote);
             sendNoteOff(sustainedNote, 0, CHANNEL);
         } else {
@@ -211,7 +261,7 @@ void loop() {
         digitalWrite(LED_BUILTIN, LOW);
 
         clearAllSustainedNotesExceptPressed();
-        sustainedNotes.clear();
+        clearSustainedNotes();
 
         if (DEBUG) {
             Serial.println("Switching Hold function OFF");
@@ -284,33 +334,39 @@ void loop() {
 void noteOn(const byte channel, const byte note, const byte velocity) {
     // if the arp is active, the note will be played automatically, so we need to prevent retriggers in that case
     // In very slow arp speeds it would take a long time until the note sounds, so we play the first not anyways.
-    if (!arpActivated || pressedNotes.empty()) {
+    if (!arpActivated || pressedNotesEmpty()) {
         sendNoteOn(note, velocity, CHANNEL);
     }
 
     // the user is entering a new chord
-    if (pressedNotes.empty()) {
+    if (pressedNotesEmpty()) {
         for (const int sustainedNote: sustainedNotes) {
             if (sustainedNote != note) {
                 sendNoteOff(sustainedNote, velocity, CHANNEL);
             }
         }
-        sustainedNotes.clear();
+        clearSustainedNotes();
+        sustainedNotesCount = 0;
     }
-    pressedNotes.insert(note);
-    sustainedNotes.insert(note);
+    pressedNotes[note] = true;
+    pressedNotesCount++;
+    sustainedNotes[note] = true;
+    sustainedNotesCount++;
 
     if (DEBUG) {
-        Serial.printf("Sustained Notes: %d\n", sustainedNotes.size());
+        printSustainedNotes();
+        printPressedNotes();
     }
 }
 
 void noteOff(const byte channel, const byte note, const byte velocity) {
     if (!holdFunctionActivated) {
         sendNoteOff(note, velocity, CHANNEL);
-        sustainedNotes.erase(note);
+        sustainedNotes[note] = false;
+        sustainedNotesCount--;
     }
-    pressedNotes.erase(note);
+    pressedNotes[note] = false;
+    pressedNotesCount--;
 }
 
 static void handleClock() {
@@ -320,12 +376,13 @@ static void handleClock() {
 
     if (clockCounter % timeDivision == 0) {
         if (DEBUG) {
-            Serial.println("Arp Pulse!");
-            Serial.printf("Sustained Notes: %d\n", sustainedNotes.size());
+            Serial.println("\n\nArp Pulse!");
+            printSustainedNotes();
+            printPressedNotes();
         }
 
-        if (!sustainedNotes.empty()) {
-            if (arpIndex >= sustainedNotes.size()) {
+        if (!sustainedNotesEmpty()) {
+            if (arpIndex >= sustainedNotesCount) {
                 arpIndex = 0;
             }
 
@@ -333,18 +390,16 @@ static void handleClock() {
                 Serial.printf("arpIndex: %d\n", arpIndex);
             }
 
-            int index = 0;
-            for (const int sustainedNote: sustainedNotes) {
-                // we send all note offs here, to avoid stuck notes, when arp is switched on
-                // Note Off needs to go first, in order to retrigger the note, if it is the only one sustained
-                sendNoteOff(sustainedNote, 127, CHANNEL);
-
-                if (index == arpIndex) {
-                    sendNoteOn(sustainedNote, 127, CHANNEL);
+            int sustainedNotesIndex = 0;
+            for (int note = 0; note < NOTES_ARRAY_SIZE; ++note) {
+                if (sustainedNotes[note]) { // the current note is sustained
+                    sendNoteOff(note, 127, CHANNEL);
+                    if (sustainedNotesIndex == arpIndex) {
+                        sendNoteOn(note, 127, CHANNEL);
+                    }
+                    sustainedNotesIndex++;
                 }
-                index++;
             }
-
             arpIndex++;
         }
     }

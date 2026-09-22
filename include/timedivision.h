@@ -24,7 +24,9 @@ typedef enum {
     _1_32T = 2,
 } TimeDivision;
 
-TimeDivision rotarySwitchNumberToSubdivision(int rotarySwitchNumber);
+TimeDivision rotarySwitchNumberToTimeDivision(int rotarySwitchNumber);
+
+const char* timeDivisionToString(TimeDivision);
 
 #ifdef __cplusplus
 }

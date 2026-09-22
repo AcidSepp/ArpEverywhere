@@ -2,18 +2,32 @@
 #include <set>
 #include "rotarySwitch.h"
 #include "timedivision.h"
+#include "pattern.h"
 
 using namespace std;
 
 // !!!!The midi library uses the PIN Number not the GPIO Number!!!!
-constexpr int MIDI_RX_PIN = 2;
-constexpr int MIDI_TX_PIN = 3;
-constexpr int HOLD_ON_OFF_SWITCH_PIN = 4;
-constexpr int ROTARY_SWITCH_PIN = 35;
+constexpr int MIDI_1_RX_PIN = 2;
+constexpr int MIDI_1_TX_PIN = 3;
+constexpr int MIDI_2_RX_PIN = 4;
+constexpr int MIDI_2_TX_PIN = 5;
+
+constexpr int HOLD_ON_OFF_SWITCH_PIN = 9;
+constexpr int CLOCK_SRC_SWITCH_PIN = 8;
+constexpr int ARP_ON_OFF_SWITCH_PIN = 7;
+constexpr int MIDI_1_THRU_ON_OFF_SWITCH_PIN = 6;
+
+constexpr int TIME_DIVISION_ROTARY_SWITCH_PIN = A1;
+constexpr int PATTERN_ROTARY_SWITCH_PIN = A2;
+
 constexpr byte CHANNEL = 1;
 constexpr bool DEBUG = true;
 
-MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
+HardwareSerial MidiSerial1(1);
+HardwareSerial MidiSerial2(2);
+
+MIDI_CREATE_INSTANCE(HardwareSerial, MidiSerial1, MIDI1);
+MIDI_CREATE_INSTANCE(HardwareSerial, MidiSerial2, MIDI2);
 
 static void noteOn(byte channel, byte note, byte velocity);
 
@@ -27,17 +41,26 @@ static bool holdFunctionActivated;
 static bool arpFunctionActivated = true;
 static int clockCounter = 0;
 static int arpIndex = 0;
-static TimeDivision pulsesPerNote = _1_4;
+static TimeDivision timeDivision = _1_4;
+static Pattern pattern = UP;
 
 void setup() {
     Serial.begin(9600);
+    Serial.println("Staring...");
 
-    Serial1.begin(31250, SERIAL_8N1, MIDI_RX_PIN, MIDI_TX_PIN);
-    MIDI.begin(MIDI_CHANNEL_OMNI);
-    MIDI.turnThruOff();
-    MIDI.setHandleNoteOn(noteOn);
-    MIDI.setHandleNoteOff(noteOff);
-    MIDI.setHandleClock(handleClock);
+    MidiSerial1.begin(31250, SERIAL_8N1, MIDI_1_RX_PIN, MIDI_1_TX_PIN);
+    MIDI1.begin(MIDI_CHANNEL_OMNI);
+    MIDI1.turnThruOff();
+    MIDI1.setHandleNoteOn(noteOn);
+    MIDI1.setHandleNoteOff(noteOff);
+    MIDI1.setHandleClock(handleClock);
+
+    MidiSerial2.begin(31250, SERIAL_8N1, MIDI_2_RX_PIN, MIDI_2_TX_PIN);
+    MIDI2.begin(MIDI_CHANNEL_OMNI);
+    MIDI2.turnThruOff();
+    MIDI2.setHandleNoteOn(noteOn);
+    MIDI2.setHandleNoteOff(noteOff);
+    MIDI1.setHandleClock(handleClock);
 
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
@@ -57,7 +80,15 @@ void setup() {
         digitalWrite(LED_BUILTIN, LOW);
     }
 
-    pinMode(ROTARY_SWITCH_PIN, INPUT);
+    pinMode(TIME_DIVISION_ROTARY_SWITCH_PIN, INPUT);
+    pinMode(PATTERN_ROTARY_SWITCH_PIN, INPUT);
+
+    pinMode(HOLD_ON_OFF_SWITCH_PIN, INPUT);
+    pinMode(CLOCK_SRC_SWITCH_PIN, INPUT);
+    pinMode(ARP_ON_OFF_SWITCH_PIN, INPUT);
+    pinMode(MIDI_1_THRU_ON_OFF_SWITCH_PIN, INPUT);
+
+    Serial.println("Started!");
 }
 
 void loop() {
@@ -85,7 +116,7 @@ void loop() {
         for (const int sustainedNote: sustainedNotes) {
             if (!pressedNotes.count(sustainedNote)) {
                 Serial.printf("Sending Note OFF: %d\n", sustainedNote);
-                MIDI.sendNoteOff(sustainedNote, 0, CHANNEL);
+                MIDI1.sendNoteOff(sustainedNote, 0, CHANNEL);
             } else {
                 Serial.printf("Not sending Note OFF: %d\n", sustainedNote);
             }
@@ -99,21 +130,22 @@ void loop() {
         delay(50);
     }
 
-    MIDI.read();
+    MIDI1.read();
+    MIDI2.read();
 }
 
 void noteOn(const byte channel, const byte note, const byte velocity) {
     // if the arp is active, the note will be played automatically, so we need to prevent retriggers in that case
     // In very slow arp speeds it would take a long time until the note sounds, so we play the first not anyways.
     if (!arpFunctionActivated || pressedNotes.empty()) {
-        MIDI.sendNoteOn(note, velocity, CHANNEL);
+        MIDI1.sendNoteOn(note, velocity, CHANNEL);
     }
 
     // the user is entering a new chord
     if (pressedNotes.empty()) {
         for (const int sustainedNote: sustainedNotes) {
             if (sustainedNote != note) {
-                MIDI.sendNoteOff(sustainedNote, velocity, CHANNEL);
+                MIDI1.sendNoteOff(sustainedNote, velocity, CHANNEL);
             }
         }
         sustainedNotes.clear();
@@ -128,14 +160,14 @@ void noteOn(const byte channel, const byte note, const byte velocity) {
 
 void noteOff(const byte channel, const byte note, const byte velocity) {
     if (!holdFunctionActivated) {
-        MIDI.sendNoteOff(note, velocity, CHANNEL);
+        MIDI1.sendNoteOff(note, velocity, CHANNEL);
         sustainedNotes.erase(note);
     }
     pressedNotes.erase(note);
 }
 
 static void handleClock() {
-    if (clockCounter % pulsesPerNote == 0) {
+    if (clockCounter % timeDivision == 0) {
         if (DEBUG) {
             Serial.println("Quarter Note!");
             Serial.printf("Sustained Notes: %d\n", sustainedNotes.size());
@@ -152,10 +184,10 @@ static void handleClock() {
             for (const int sustainedNote: sustainedNotes) {
                 // we send all note offs here, to avoid stuck notes, when arp is switched on
                 // Note Off needs to go first, in order to retrigger the note, if it is the only one sustained
-                MIDI.sendNoteOff(sustainedNote, 127, CHANNEL);
+                MIDI1.sendNoteOff(sustainedNote, 127, CHANNEL);
 
                 if (index == arpIndex) {
-                    MIDI.sendNoteOn(sustainedNote, 127, CHANNEL);
+                    MIDI1.sendNoteOn(sustainedNote, 127, CHANNEL);
                 }
                 index++;
             }
@@ -165,14 +197,23 @@ static void handleClock() {
     }
 
     // Read the rotary switch every 1/4 note, this should suffice in accuracy
-    // if (clockCounter % _1_4 == 0) {
-    //     const int sensorValue = analogRead(ROTARY_SWITCH_PIN);
-    //     pulsesPerNote = rotarySwitchNumberToSubdivision(getRotarySwitchNumber(sensorValue));
-    //
-    //     if (DEBUG) {
-    //         Serial.printf("pulsesPerNote: %d\n", pulsesPerNote);
-    //     }
-    // }
+    if (clockCounter % _1_4 == 0) {
+        const Pattern newPattern =
+        rotarySwitchNumberToPattern(getRotarySwitchNumber(analogRead(PATTERN_ROTARY_SWITCH_PIN)));
+        if (newPattern != pattern) {
+            pattern = newPattern;
+            Serial.printf("Pattern: %s\n", patternToString(pattern));
+            delay(50);
+        }
+
+        const TimeDivision newTimeDivision =
+            rotarySwitchNumberToTimeDivision(getRotarySwitchNumber(analogRead(TIME_DIVISION_ROTARY_SWITCH_PIN)));
+        if (newTimeDivision != timeDivision) {
+            timeDivision = newTimeDivision;
+            Serial.printf("TimeDivision: %s\n", timeDivisionToString(timeDivision));
+            delay(50);
+        }
+    }
 
     // the clock counter needs to stay in range between 0 and 32 quarter notes, as this is the biggest subdivision we support
     clockCounter = (clockCounter + 1) % _32_4;

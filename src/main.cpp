@@ -349,15 +349,15 @@ void loop() {
 void noteOn(const byte channel, const byte note, const byte velocity) {
     // if the arp is active, the note will be played automatically, so we need to prevent retriggers in that case
     // In very slow arp speeds it would take a long time until the note sounds, so we play the first not anyways.
-    if (!arpActivated) {
+    if (!arpActivated || pressedNotesEmpty()) {
         sendNoteOn(note, velocity, CHANNEL);
     }
 
     // the user is entering a new chord
     if (pressedNotesEmpty()) {
-        for (const int sustainedNote: sustainedNotes) {
-            if (sustainedNote != note) {
-                sendNoteOff(sustainedNote, velocity, CHANNEL);
+        for (int sustainedNotesIndex = 0; sustainedNotesIndex < 128; ++sustainedNotesIndex) {
+            if (sustainedNotes[sustainedNotesIndex] && sustainedNotesIndex != note) {
+                MIDI1.sendNoteOff(sustainedNotesIndex, 0, channel);
             }
         }
         clearSustainedNotes();

@@ -46,6 +46,11 @@ static Pattern pattern = UP;
 static bool clockFromMidi1 = true;
 static bool midi1Thru = false;
 
+void resetCounters() {
+    clockCounter = 0;
+    arpIndex = 0;
+}
+
 static bool pressedNotesEmpty() {
     for (const bool pressedNote: pressedNotes) {
         if (pressedNote) {
@@ -160,11 +165,21 @@ void setup() {
         Serial.println("Clock Source: MIDI 1");
         MIDI1.setHandleClock(handleClock);
         MIDI2.setHandleClock(nullptr);
+
+        MIDI1.setHandleStart(resetCounters);
+        MIDI1.setHandleStop(resetCounters);
+        MIDI2.setHandleStart(nullptr);
+        MIDI2.setHandleStop(nullptr);
     } else {
         clockFromMidi1 = false;
         Serial.println("Clock Source: MIDI 2");
         MIDI1.setHandleClock(nullptr);
         MIDI2.setHandleClock(handleClock);
+
+        MIDI1.setHandleStart(nullptr);
+        MIDI1.setHandleStop(nullptr);
+        MIDI2.setHandleStart(resetCounters);
+        MIDI2.setHandleStop(resetCounters);
     }
 
     pinMode(LED_BUILTIN, OUTPUT);
@@ -334,7 +349,7 @@ void loop() {
 void noteOn(const byte channel, const byte note, const byte velocity) {
     // if the arp is active, the note will be played automatically, so we need to prevent retriggers in that case
     // In very slow arp speeds it would take a long time until the note sounds, so we play the first not anyways.
-    if (!arpActivated || pressedNotesEmpty()) {
+    if (!arpActivated) {
         sendNoteOn(note, velocity, CHANNEL);
     }
 

@@ -1,12 +1,32 @@
 #include <MIDI.h>
 #include <set>
 
-constexpr int ROTARY_SWITCH_PIN = 35;
+constexpr int ROTARY_SWITCH_PIN = A2;
+
+const int MIDI_1_RX_PIN = 2;
+const int MIDI_1_TX_PIN = 3;
+const int MIDI_2_RX_PIN = 4;
+const int MIDI_2_TX_PIN = 3;
+
+constexpr int HOLD_ON_OFF_SWITCH_PIN = 9;
+constexpr int CLOCK_SRC_SWITCH_PIN = 8;
+constexpr int ARP_ON_OFF_SWITCH_PIN = 7;
+constexpr int MIDI_1_THRU_ON_OFF_SWITCH_PIN = 6;
 
 void setup() {
     Serial.begin(9600);
 
     pinMode(ROTARY_SWITCH_PIN, INPUT);
+
+    pinMode(MIDI_1_RX_PIN, INPUT);
+    pinMode(MIDI_1_TX_PIN, OUTPUT);
+    pinMode(MIDI_2_RX_PIN, INPUT);
+    pinMode(MIDI_2_TX_PIN, OUTPUT);
+
+    pinMode(HOLD_ON_OFF_SWITCH_PIN, INPUT);
+    pinMode(CLOCK_SRC_SWITCH_PIN, INPUT);
+    pinMode(ARP_ON_OFF_SWITCH_PIN, INPUT);
+    pinMode(MIDI_1_THRU_ON_OFF_SWITCH_PIN, INPUT);
 }
 
 
@@ -53,5 +73,6 @@ static int getRotarySwitchNumber(const int sensorValue) {
 void loop() {
     delay(1000);
     const int sensorValue = analogRead(ROTARY_SWITCH_PIN);
+    Serial.printf("Raw Value %d\n", sensorValue);
     Serial.printf("Value: %d\n", getRotarySwitchNumber(sensorValue));
 }

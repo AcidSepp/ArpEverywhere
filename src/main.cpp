@@ -2,6 +2,7 @@
 #include "rotarySwitch.h"
 #include "timedivision.h"
 #include "pattern.h"
+#include "UpDown.h"
 
 constexpr int MIDI_1_RX_PIN = 2;
 constexpr int MIDI_1_TX_PIN = 3;
@@ -40,15 +41,15 @@ static int sustainedNotesCount = 0;
 static bool holdFunctionActivated;
 static bool arpActivated = true;
 static int clockCounter = 0;
-static int arpIndex = 0;
 static TimeDivision timeDivision = _1_4;
 static Pattern pattern = UP;
 static bool clockFromMidi1 = true;
 static bool midi1Thru = false;
 
+static UpDown* upDown = new UpDown();
+
 void resetCounters() {
     clockCounter = 0;
-    arpIndex = 0;
 }
 
 static bool pressedNotesEmpty() {
@@ -70,7 +71,7 @@ static bool sustainedNotesEmpty() {
 }
 
 static void clearSustainedNotes() {
-    for (bool & sustainedNote : sustainedNotes) {
+    for (bool &sustainedNote: sustainedNotes) {
         sustainedNote = false;
     }
 }
@@ -202,8 +203,15 @@ void setup() {
         Serial.println("Hold: OFF");
     }
 
-    pinMode(TIME_DIVISION_ROTARY_SWITCH_PIN, INPUT);
     pinMode(PATTERN_ROTARY_SWITCH_PIN, INPUT);
+    pattern = rotarySwitchNumberToPattern(getRotarySwitchNumber(analogRead(PATTERN_ROTARY_SWITCH_PIN)));
+    Serial.printf("Pattern: %s\n", patternToString(pattern));
+
+    pinMode(TIME_DIVISION_ROTARY_SWITCH_PIN, INPUT);
+    timeDivision =
+            rotarySwitchNumberToTimeDivision(getRotarySwitchNumber(analogRead(TIME_DIVISION_ROTARY_SWITCH_PIN)));
+    Serial.printf("TimeDivision: %s\n", timeDivisionToString(timeDivision));
+
 
     pinMode(ARP_ON_OFF_SWITCH_PIN, INPUT);
     if (digitalRead(ARP_ON_OFF_SWITCH_PIN) == HIGH) {
@@ -308,11 +316,11 @@ void loop() {
         clearAllSustainedNotesExceptPressed();
 
         if (holdFunctionActivated) {
-            for (const int sustainedNote : sustainedNotes) {
+            for (const int sustainedNote: sustainedNotes) {
                 sendNoteOn(sustainedNote, 127, CHANNEL);
             }
         } else {
-            for (const int pressedNote : pressedNotes) {
+            for (const int pressedNote: pressedNotes) {
                 sendNoteOn(pressedNote, 127, CHANNEL);
             }
         }
@@ -349,7 +357,7 @@ void loop() {
 void noteOn(const byte channel, const byte note, const byte velocity) {
     // if the arp is active, the note will be played automatically, so we need to prevent retriggers in that case
     // In very slow arp speeds it would take a long time until the note sounds, so we play the first not anyways.
-    if (!arpActivated || pressedNotesEmpty()) {
+    if (!arpActivated || sustainedNotesEmpty()) {
         sendNoteOn(note, velocity, CHANNEL);
     }
 
@@ -394,20 +402,20 @@ static void handleClock() {
             Serial.println("\n\nArp Pulse!");
             printSustainedNotes();
             printPressedNotes();
+            Serial.printf("Pattern: %s\n", patternToString(pattern));
+            Serial.printf("TimeDivision: %s\n", timeDivisionToString(timeDivision));
         }
 
         if (!sustainedNotesEmpty()) {
-            if (arpIndex >= sustainedNotesCount) {
-                arpIndex = 0;
-            }
-
+            int arpIndex = upDown->next(sustainedNotesCount);
             if (DEBUG) {
                 Serial.printf("arpIndex: %d\n", arpIndex);
             }
 
             int sustainedNotesIndex = 0;
             for (int note = 0; note < NOTES_ARRAY_SIZE; ++note) {
-                if (sustainedNotes[note]) { // the current note is sustained
+                if (sustainedNotes[note]) {
+                    // the current note is sustained
                     sendNoteOff(note, 127, CHANNEL);
                     if (sustainedNotesIndex == arpIndex) {
                         sendNoteOn(note, 127, CHANNEL);
@@ -422,17 +430,15 @@ static void handleClock() {
     // Read the rotary switch every 1/4 note, this should suffice in accuracy
     if (clockCounter % _1_4 == 0) {
         const Pattern newPattern =
-        rotarySwitchNumberToPattern(getRotarySwitchNumber(analogRead(PATTERN_ROTARY_SWITCH_PIN)));
+                rotarySwitchNumberToPattern(getRotarySwitchNumber(analogRead(PATTERN_ROTARY_SWITCH_PIN)));
         if (newPattern != pattern) {
             pattern = newPattern;
-            Serial.printf("Pattern: %s\n", patternToString(pattern));
         }
 
         const TimeDivision newTimeDivision =
-            rotarySwitchNumberToTimeDivision(getRotarySwitchNumber(analogRead(TIME_DIVISION_ROTARY_SWITCH_PIN)));
+                rotarySwitchNumberToTimeDivision(getRotarySwitchNumber(analogRead(TIME_DIVISION_ROTARY_SWITCH_PIN)));
         if (newTimeDivision != timeDivision) {
             timeDivision = newTimeDivision;
-            Serial.printf("TimeDivision: %s\n", timeDivisionToString(timeDivision));
         }
     }
 

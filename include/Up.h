@@ -1,0 +1,19 @@
+//
+// Created by yannick on 9/25/26.
+//
+
+#ifndef ARPEVERYWHERE_UP_H
+#define ARPEVERYWHERE_UP_H
+
+
+class Up {
+private:
+    int index = 0;
+public:
+    Up();
+
+    int next(int sustainedNoteCount);
+};
+
+
+#endif //ARPEVERYWHERE_UP_H

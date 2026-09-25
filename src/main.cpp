@@ -2,6 +2,7 @@
 #include "rotarySwitch.h"
 #include "timedivision.h"
 #include "pattern.h"
+#include "Up.h"
 #include "UpDown.h"
 
 constexpr int MIDI_1_RX_PIN = 2;
@@ -46,7 +47,8 @@ static Pattern pattern = UP;
 static bool clockFromMidi1 = true;
 static bool midi1Thru = false;
 
-static UpDown* upDown = new UpDown();
+static auto upDown = new UpDown();
+static auto up = new Up();
 
 void resetCounters() {
     clockCounter = 0;
@@ -407,7 +409,18 @@ static void handleClock() {
         }
 
         if (!sustainedNotesEmpty()) {
-            int arpIndex = upDown->next(sustainedNotesCount);
+            int arpIndex = 0;
+            switch (pattern) {
+                case UP:
+                    arpIndex = up->next(sustainedNotesCount);
+                    break;
+                case UP_DOWN:
+                    arpIndex = upDown->next(sustainedNotesCount);
+                    break;
+                default:
+                    arpIndex = 0;
+            }
+
             if (DEBUG) {
                 Serial.printf("arpIndex: %d\n", arpIndex);
             }

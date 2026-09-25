@@ -2,6 +2,7 @@
 
 #include "Down.h"
 #include "Hourglass.h"
+#include "Jump.h"
 #include "Narrow.h"
 #include "rotarySwitch.h"
 #include "timedivision.h"
@@ -58,6 +59,7 @@ static auto down = new Down();
 static auto narrow = new Narrow();
 static auto hourglass = new Hourglass();
 static auto pyramid = new Pyramid();
+static auto jump = new Jump();
 
 void resetCounters() {
     clockCounter = 0;
@@ -438,6 +440,9 @@ static void handleClock() {
                 case PYRAMID:
                     arpIndex = pyramid->next(sustainedNotesCount);
                     break;
+                case JUMP:
+                    arpIndex = jump->next(sustainedNotesCount);
+                    break;
                 default:
                     arpIndex = 0;
             }
@@ -467,12 +472,14 @@ static void handleClock() {
                 rotarySwitchNumberToPattern(getRotarySwitchNumber(analogRead(PATTERN_ROTARY_SWITCH_PIN)));
         if (newPattern != pattern) {
             pattern = newPattern;
+            Serial.printf("Pattern: %s\n", patternToString(pattern));
         }
 
         const TimeDivision newTimeDivision =
                 rotarySwitchNumberToTimeDivision(getRotarySwitchNumber(analogRead(TIME_DIVISION_ROTARY_SWITCH_PIN)));
         if (newTimeDivision != timeDivision) {
             timeDivision = newTimeDivision;
+            Serial.printf("TimeDivision: %s\n", timeDivisionToString(timeDivision));
         }
     }
 

@@ -8,6 +8,7 @@
 class UpDown {
     int index = 0;
     bool up = true;
+
 public:
     UpDown();
 

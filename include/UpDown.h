@@ -6,7 +6,6 @@
 #define ARPEVERYWHERE_UPDOWN_H
 
 class UpDown {
-private:
     int index = 0;
     bool up = true;
 public:

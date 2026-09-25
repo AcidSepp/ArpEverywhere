@@ -1,4 +1,6 @@
 #include <MIDI.h>
+
+#include "Down.h"
 #include "rotarySwitch.h"
 #include "timedivision.h"
 #include "pattern.h"
@@ -49,6 +51,7 @@ static bool midi1Thru = false;
 
 static auto upDown = new UpDown();
 static auto up = new Up();
+static auto down = new Down();
 
 void resetCounters() {
     clockCounter = 0;
@@ -416,6 +419,9 @@ static void handleClock() {
                     break;
                 case UP_DOWN:
                     arpIndex = upDown->next(sustainedNotesCount);
+                    break;
+                case DOWN:
+                    arpIndex = down->next(sustainedNotesCount);
                     break;
                 default:
                     arpIndex = 0;

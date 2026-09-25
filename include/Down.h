@@ -2,17 +2,17 @@
 // Created by yannick on 9/25/26.
 //
 
-#ifndef ARPEVERYWHERE_UP_H
-#define ARPEVERYWHERE_UP_H
+#ifndef ARPEVERYWHERE_DOWN_H
+#define ARPEVERYWHERE_DOWN_H
 
 
-class Up {
+class Down {
     int index = 0;
 public:
-    Up();
+    Down();
 
     int next(int sustainedNoteCount);
 };
 
 
-#endif //ARPEVERYWHERE_UP_H
+#endif //ARPEVERYWHERE_DOWN_H

@@ -6,6 +6,7 @@
 #include "rotarySwitch.h"
 #include "timedivision.h"
 #include "pattern.h"
+#include "Pyramid.h"
 #include "Up.h"
 #include "UpDown.h"
 
@@ -23,7 +24,7 @@ constexpr int TIME_DIVISION_ROTARY_SWITCH_PIN = A1;
 constexpr int PATTERN_ROTARY_SWITCH_PIN = A2;
 
 constexpr byte CHANNEL = 1;
-constexpr bool DEBUG = true;
+constexpr bool DEBUG = false;
 
 HardwareSerial MidiSerial1(1);
 HardwareSerial MidiSerial2(2);
@@ -56,6 +57,7 @@ static auto up = new Up();
 static auto down = new Down();
 static auto narrow = new Narrow();
 static auto hourglass = new Hourglass();
+static auto pyramid = new Pyramid();
 
 void resetCounters() {
     clockCounter = 0;
@@ -432,6 +434,9 @@ static void handleClock() {
                     break;
                 case HOURGLASS:
                     arpIndex = hourglass->next(sustainedNotesCount);
+                    break;
+                case PYRAMID:
+                    arpIndex = pyramid->next(sustainedNotesCount);
                     break;
                 default:
                     arpIndex = 0;

@@ -8,6 +8,7 @@
 #include "timedivision.h"
 #include "pattern.h"
 #include "Pyramid.h"
+#include "Random1.h"
 #include "Touch.h"
 #include "Up.h"
 #include "UpDown.h"
@@ -480,6 +481,9 @@ static void handleClock() {
                         break;
                     case JUMP:
                         arpIndex = jump->next(sustainedNotesCount);
+                        break;
+                    case RND_1:
+                        arpIndex = Random1::next(sustainedNotesCount);
                         break;
                     default:
                         arpIndex = 0;

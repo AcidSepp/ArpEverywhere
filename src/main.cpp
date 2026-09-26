@@ -10,6 +10,7 @@
 #include "Pyramid.h"
 #include "Random1.h"
 #include "Random2.h"
+#include "Random3.h"
 #include "Touch.h"
 #include "Up.h"
 #include "UpDown.h"
@@ -64,6 +65,7 @@ static auto hourglass = new Hourglass();
 static auto pyramid = new Pyramid();
 static auto jump = new Jump();
 static auto rnd2 = new Random2();
+static auto rnd3 = new Random3();
 
 static byte noteInputOrder[NOTES_ARRAY_SIZE];
 static int noteInputOrderPointer = 0;
@@ -489,6 +491,9 @@ static void handleClock() {
                         break;
                     case RND_2:
                         arpIndex = rnd2->next(sustainedNotesCount);
+                        break;
+                    case RND_3:
+                        arpIndex = rnd3->next(sustainedNotesCount);
                         break;
                     default:
                         arpIndex = 0;

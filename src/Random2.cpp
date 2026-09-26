@@ -3,13 +3,10 @@
 //
 
 #include "Random2.h"
-
 #include <random>
 
-#include <MIDI.h>
 
 Random2::Random2() {
-
 }
 
 int Random2::next(const int sustainedNoteCount) {

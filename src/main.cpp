@@ -30,7 +30,7 @@ constexpr int TIME_DIVISION_ROTARY_SWITCH_PIN = A1;
 constexpr int PATTERN_ROTARY_SWITCH_PIN = A2;
 
 constexpr byte CHANNEL = 1;
-constexpr bool DEBUG = true;
+constexpr bool DEBUG = false;
 
 HardwareSerial MidiSerial1(1);
 HardwareSerial MidiSerial2(2);
@@ -138,28 +138,32 @@ static void printNoteInputOrder() {
     Serial.println();
 }
 
-static void sendNoteOn(const byte note, const byte velocity, const byte channel) {
+static void sendNoteOn(const byte note, const byte velocity) {
     if (DEBUG) {
         Serial.printf("Sending NOTE ON: n=%d\n", note);
     }
-    if (!midi1Thru) {
-        MIDI1.sendNoteOn(note, velocity, channel);
+    for (int i = 0; i < 10; ++i) {
+        if (!midi1Thru) {
+            MIDI1.sendNoteOn(note, velocity, i);
+        }
+        MIDI2.sendNoteOn(note, velocity, i);
     }
-    MIDI2.sendNoteOn(note, velocity, channel);
 }
 
-static void sendNoteOff(const byte note, const byte velocity, const byte channel) {
+static void sendNoteOff(const byte note, const byte velocity) {
     if (DEBUG) {
         Serial.printf("Sending NOTE OFF: n=%d\n", note);
     }
-    if (!midi1Thru) {
-        MIDI1.sendNoteOff(note, velocity, channel);
+    for (int i = 0; i < 10; ++i) {
+        if (!midi1Thru) {
+            MIDI1.sendNoteOff(note, velocity, i);
+        }
+        MIDI2.sendNoteOff(note, velocity, i);
     }
-    MIDI2.sendNoteOff(note, velocity, channel);
 }
 
 static void midi1AllNotesOff() {
-    for (int channel = 0; channel < 11; ++channel) {
+    for (int channel = 0; channel < 10; ++channel) {
         for (int note = 0; note < 128; ++note) {
             MIDI1.sendNoteOff(note, 0, channel);
         }
@@ -167,7 +171,7 @@ static void midi1AllNotesOff() {
 }
 
 static void midi2AllNotesOff() {
-    for (int channel = 0; channel < 11; ++channel) {
+    for (int channel = 0; channel < 10; ++channel) {
         for (int note = 0; note < 128; ++note) {
             MIDI2.sendNoteOff(note, 0, channel);
         }
@@ -268,7 +272,7 @@ void setup() {
 static void noteOffAllSustainedNotesExceptPressed() {
     for (int i = 0; i < NOTES_ARRAY_SIZE; i++) {
         if (!pressedNotes[i] && sustainedNotes[i]) {
-            sendNoteOff(i, 0, CHANNEL);
+            sendNoteOff(i, 0);
         }
     }
 }
@@ -356,13 +360,13 @@ void loop() {
         if (holdFunctionActivated) {
             for (int i = 0; i < NOTES_ARRAY_SIZE; i++) {
                 if (sustainedNotes[i]) {
-                    sendNoteOn(i, 127, CHANNEL);
+                    sendNoteOn(i, 127);
                 }
             }
         } else {
             for (int i = 0; i < NOTES_ARRAY_SIZE; i++) {
                 if (pressedNotes[i]) {
-                    sendNoteOn(i, 127, CHANNEL);
+                    sendNoteOn(i, 127);
                 }
             }
         }
@@ -404,7 +408,7 @@ void noteOn(const byte channel, const byte note, const byte velocity) {
     // if the arp is active, the note will be played automatically, so we need to prevent retriggers in that case
     // In very slow arp speeds it would take a long time until the note sounds, so we play the first not anyways.
     if (!arpActivated || sustainedNotesEmpty()) {
-        sendNoteOn(note, velocity, CHANNEL);
+        sendNoteOn(note, velocity);
     }
 
     // the user is entering a new chord
@@ -442,7 +446,7 @@ void noteOff(const byte channel, const byte note, const byte velocity) {
     }
 
     if (!holdFunctionActivated) {
-        sendNoteOff(note, velocity, CHANNEL);
+        sendNoteOff(note, velocity);
         sustainedNotes[note] = false;
         sustainedNotesCount--;
     }
@@ -492,11 +496,11 @@ static void handleClock() {
                 for (int note = 0; note < NOTES_ARRAY_SIZE; ++note) {
                     if (sustainedNotes[note]) {
                         // the current note is sustained
-                        sendNoteOff(note, 127, CHANNEL);
+                        sendNoteOff(note, 127);
                         sustainedNotesIndex++;
                     }
                     if (note == nextNote) {
-                        sendNoteOn(note, 127, CHANNEL);
+                        sendNoteOn(note, 127);
                     }
                 }
             } else {
@@ -551,9 +555,9 @@ static void handleClock() {
                 for (int note = 0; note < NOTES_ARRAY_SIZE; ++note) {
                     if (sustainedNotes[note]) {
                         // the current note is sustained
-                        sendNoteOff(note, 127, CHANNEL);
+                        sendNoteOff(note, 127);
                         if (sustainedNotesIndex == arpIndex) {
-                            sendNoteOn(note, 127, CHANNEL);
+                            sendNoteOn(note, 127);
                         }
                         sustainedNotesIndex++;
                     }

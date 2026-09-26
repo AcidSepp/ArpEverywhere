@@ -18,3 +18,7 @@ int Up::next(const int sustainedNoteCount) {
 
     return result;
 }
+
+void Up::reset() {
+    index = 0;
+}

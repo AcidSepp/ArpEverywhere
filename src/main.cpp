@@ -11,6 +11,7 @@
 #include "Random1.h"
 #include "Random2.h"
 #include "Random3.h"
+#include "Random4.h"
 #include "Touch.h"
 #include "Up.h"
 #include "UpDown.h"
@@ -434,6 +435,26 @@ void noteOff(const byte channel, const byte note, const byte velocity) {
 }
 
 static void handleClock() {
+    // Read the rotary switch every 1/4 note, this should suffice in accuracy
+    if (clockCounter % _1_4 == 0) {
+        const Pattern newPattern =
+                rotarySwitchNumberToPattern(getRotarySwitchNumber(analogRead(PATTERN_ROTARY_SWITCH_PIN)));
+        if (newPattern != pattern) {
+            pattern = newPattern;
+            Serial.printf("Pattern: %s\n", patternToString(pattern));
+        }
+
+        const TimeDivision newTimeDivision =
+                rotarySwitchNumberToTimeDivision(getRotarySwitchNumber(analogRead(TIME_DIVISION_ROTARY_SWITCH_PIN)));
+        if (newTimeDivision != timeDivision) {
+            timeDivision = newTimeDivision;
+            Serial.printf("TimeDivision: %s\n", timeDivisionToString(timeDivision));
+        }
+    }
+
+    // the clock counter needs to stay in range between 0 and 32 quarter notes, as this is the biggest subdivision we support
+    clockCounter = (clockCounter + 1) % _32_4;
+
     if (!arpActivated) {
         return;
     }
@@ -495,12 +516,19 @@ static void handleClock() {
                     case RND_3:
                         arpIndex = rnd3->next(sustainedNotesCount);
                         break;
+                    case RND_4:
+                        arpIndex = Random4::next(sustainedNotesCount);
+                        break;
                     default:
                         arpIndex = 0;
                 }
 
                 if (DEBUG) {
                     Serial.printf("arpIndex: %d\n", arpIndex);
+                }
+
+                if (arpIndex == -1) {
+                    return;
                 }
 
                 int sustainedNotesIndex = 0;
@@ -517,24 +545,4 @@ static void handleClock() {
             }
         }
     }
-
-    // Read the rotary switch every 1/4 note, this should suffice in accuracy
-    if (clockCounter % _1_4 == 0) {
-        const Pattern newPattern =
-                rotarySwitchNumberToPattern(getRotarySwitchNumber(analogRead(PATTERN_ROTARY_SWITCH_PIN)));
-        if (newPattern != pattern) {
-            pattern = newPattern;
-            Serial.printf("Pattern: %s\n", patternToString(pattern));
-        }
-
-        const TimeDivision newTimeDivision =
-                rotarySwitchNumberToTimeDivision(getRotarySwitchNumber(analogRead(TIME_DIVISION_ROTARY_SWITCH_PIN)));
-        if (newTimeDivision != timeDivision) {
-            timeDivision = newTimeDivision;
-            Serial.printf("TimeDivision: %s\n", timeDivisionToString(timeDivision));
-        }
-    }
-
-    // the clock counter needs to stay in range between 0 and 32 quarter notes, as this is the biggest subdivision we support
-    clockCounter = (clockCounter + 1) % _32_4;
 }

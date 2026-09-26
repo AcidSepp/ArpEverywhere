@@ -2,8 +2,8 @@
 // Created by yannick on 9/9/26.
 //
 
-#ifndef ARPEVERYWHERE_SUBDEVISION_H
-#define ARPEVERYWHERE_SUBDEVISION_H
+#ifndef ARPEVERYWHERE_TIME_DIVISION_H
+#define ARPEVERYWHERE_TIME_DIVISION_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,4 +32,4 @@ const char* timeDivisionToString(TimeDivision);
 }
 #endif
 
-#endif //ARPEVERYWHERE_SUBDEVISION_H
+#endif //ARPEVERYWHERE_TIME_DIVISION_H

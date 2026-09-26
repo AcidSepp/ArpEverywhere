@@ -8,6 +8,7 @@
 #include "timedivision.h"
 #include "pattern.h"
 #include "Pyramid.h"
+#include "Touch.h"
 #include "Up.h"
 #include "UpDown.h"
 
@@ -25,7 +26,7 @@ constexpr int TIME_DIVISION_ROTARY_SWITCH_PIN = A1;
 constexpr int PATTERN_ROTARY_SWITCH_PIN = A2;
 
 constexpr byte CHANNEL = 1;
-constexpr bool DEBUG = false;
+constexpr bool DEBUG = true;
 
 HardwareSerial MidiSerial1(1);
 HardwareSerial MidiSerial2(2);
@@ -60,6 +61,10 @@ static auto narrow = new Narrow();
 static auto hourglass = new Hourglass();
 static auto pyramid = new Pyramid();
 static auto jump = new Jump();
+
+static byte noteInputOrder[NOTES_ARRAY_SIZE];
+static int noteInputOrderPointer = 0;
+static auto touch = new Touch();
 
 void resetCounters() {
     clockCounter = 0;
@@ -107,6 +112,15 @@ static void printPressedNotes() {
             Serial.print(i);
             Serial.print(" ");
         }
+    }
+    Serial.println();
+}
+
+static void printNoteInputOrder() {
+    Serial.printf("Notes Input Order (%d): ", noteInputOrderPointer + 1);
+    for (int i = 0; i < noteInputOrderPointer; i++) {
+        Serial.print(noteInputOrder[i]);
+        Serial.print(" ");
     }
     Serial.println();
 }
@@ -238,13 +252,13 @@ void setup() {
     Serial.println("Started!");
 }
 
-static void clearAllSustainedNotesExceptPressed() {
-    for (const int sustainedNote: sustainedNotes) {
-        if (!pressedNotes[sustainedNote]) {
-            Serial.printf("Sending Note OFF: %d\n", sustainedNote);
-            sendNoteOff(sustainedNote, 0, CHANNEL);
+static void noteOffAllSustainedNotesExceptPressed() {
+    for (int i = 0; i < NOTES_ARRAY_SIZE; i++) {
+        if (!pressedNotes[i]) {
+            Serial.printf("Sending Note OFF: %d\n", i);
+            sendNoteOff(i, 0, CHANNEL);
         } else {
-            Serial.printf("Not sending Note OFF: %d\n", sustainedNote);
+            Serial.printf("Not sending Note OFF: %d\n", i);
         }
     }
 }
@@ -296,8 +310,9 @@ void loop() {
         holdFunctionActivated = false;
         digitalWrite(LED_BUILTIN, LOW);
 
-        clearAllSustainedNotesExceptPressed();
+        noteOffAllSustainedNotesExceptPressed();
         clearSustainedNotes();
+        noteInputOrderPointer = 0;
 
         if (DEBUG) {
             Serial.println("Switching Hold function OFF");
@@ -326,7 +341,7 @@ void loop() {
         clockCounter = 0;
         arpActivated = false;
 
-        clearAllSustainedNotesExceptPressed();
+        noteOffAllSustainedNotesExceptPressed();
 
         if (holdFunctionActivated) {
             for (const int sustainedNote: sustainedNotes) {
@@ -383,15 +398,23 @@ void noteOn(const byte channel, const byte note, const byte velocity) {
         }
         clearSustainedNotes();
         sustainedNotesCount = 0;
+        noteInputOrderPointer = 0;
     }
     pressedNotes[note] = true;
     pressedNotesCount++;
     sustainedNotes[note] = true;
     sustainedNotesCount++;
 
+    noteInputOrder[noteInputOrderPointer] = note;
+    Serial.println(note);
+    if (noteInputOrderPointer < NOTES_ARRAY_SIZE) {
+        noteInputOrderPointer++;
+    }
+
     if (DEBUG) {
         printSustainedNotes();
         printPressedNotes();
+        printNoteInputOrder();
     }
 }
 
@@ -415,54 +438,69 @@ static void handleClock() {
             Serial.println("\n\nArp Pulse!");
             printSustainedNotes();
             printPressedNotes();
+            printNoteInputOrder();
             Serial.printf("Pattern: %s\n", patternToString(pattern));
             Serial.printf("TimeDivision: %s\n", timeDivisionToString(timeDivision));
         }
 
         if (!sustainedNotesEmpty()) {
-            int arpIndex = 0;
-            switch (pattern) {
-                case UP:
-                    arpIndex = up->next(sustainedNotesCount);
-                    break;
-                case UP_DOWN:
-                    arpIndex = upDown->next(sustainedNotesCount);
-                    break;
-                case DOWN:
-                    arpIndex = down->next(sustainedNotesCount);
-                    break;
-                case NARROW:
-                    arpIndex = narrow->next(sustainedNotesCount);
-                    break;
-                case HOURGLASS:
-                    arpIndex = hourglass->next(sustainedNotesCount);
-                    break;
-                case PYRAMID:
-                    arpIndex = pyramid->next(sustainedNotesCount);
-                    break;
-                case JUMP:
-                    arpIndex = jump->next(sustainedNotesCount);
-                    break;
-                default:
-                    arpIndex = 0;
-            }
-
-            if (DEBUG) {
-                Serial.printf("arpIndex: %d\n", arpIndex);
-            }
-
-            int sustainedNotesIndex = 0;
-            for (int note = 0; note < NOTES_ARRAY_SIZE; ++note) {
-                if (sustainedNotes[note]) {
-                    // the current note is sustained
-                    sendNoteOff(note, 127, CHANNEL);
-                    if (sustainedNotesIndex == arpIndex) {
+            if (pattern == TOUCH) {
+                const int nextNote = touch->next(noteInputOrder, noteInputOrderPointer);
+                int sustainedNotesIndex = 0;
+                for (int note = 0; note < NOTES_ARRAY_SIZE; ++note) {
+                    if (sustainedNotes[note]) {
+                        // the current note is sustained
+                        sendNoteOff(note, 127, CHANNEL);
+                        sustainedNotesIndex++;
+                    }
+                    if (note == nextNote) {
                         sendNoteOn(note, 127, CHANNEL);
                     }
-                    sustainedNotesIndex++;
+                }
+            } else {
+                int arpIndex = 0;
+                switch (pattern) {
+                    case UP:
+                        arpIndex = up->next(sustainedNotesCount);
+                        break;
+                    case UP_DOWN:
+                        arpIndex = upDown->next(sustainedNotesCount);
+                        break;
+                    case DOWN:
+                        arpIndex = down->next(sustainedNotesCount);
+                        break;
+                    case NARROW:
+                        arpIndex = narrow->next(sustainedNotesCount);
+                        break;
+                    case HOURGLASS:
+                        arpIndex = hourglass->next(sustainedNotesCount);
+                        break;
+                    case PYRAMID:
+                        arpIndex = pyramid->next(sustainedNotesCount);
+                        break;
+                    case JUMP:
+                        arpIndex = jump->next(sustainedNotesCount);
+                        break;
+                    default:
+                        arpIndex = 0;
+                }
+
+                if (DEBUG) {
+                    Serial.printf("arpIndex: %d\n", arpIndex);
+                }
+
+                int sustainedNotesIndex = 0;
+                for (int note = 0; note < NOTES_ARRAY_SIZE; ++note) {
+                    if (sustainedNotes[note]) {
+                        // the current note is sustained
+                        sendNoteOff(note, 127, CHANNEL);
+                        if (sustainedNotesIndex == arpIndex) {
+                            sendNoteOn(note, 127, CHANNEL);
+                        }
+                        sustainedNotesIndex++;
+                    }
                 }
             }
-            arpIndex++;
         }
     }
 

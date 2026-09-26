@@ -25,3 +25,8 @@ int Pyramid::next(const int sustainedNotesCount) {
 
     return result;
 }
+
+void Pyramid::reset() {
+    low = true;
+    index = 0;
+}

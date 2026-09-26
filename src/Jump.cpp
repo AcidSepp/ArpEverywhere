@@ -26,3 +26,8 @@ int Jump::next(int sustainedNotesCount) {
     playLowestNote = true;
     return result;
 }
+
+void Jump::reset() {
+    index = 0;
+    playLowestNote = true;
+}

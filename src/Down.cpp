@@ -17,3 +17,7 @@ int Down::next(const int sustainedNoteCount) {
 
     return result;
 }
+
+void Down::reset() {
+    index = 0;
+}

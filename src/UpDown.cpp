@@ -26,3 +26,8 @@ int UpDown::next(const int sustainedNoteCount) {
 
     return result;
 }
+
+void UpDown::reset() {
+    up = true;
+    index = 0;
+}

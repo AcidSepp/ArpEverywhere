@@ -14,6 +14,8 @@ public:
     Narrow();
 
     int next(int sustainedNotesCount);
+
+    void reset();
 };
 
 

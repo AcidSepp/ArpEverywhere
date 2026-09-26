@@ -13,6 +13,8 @@ public:
     UpDown();
 
     int next(int sustainedNotesCount);
+
+    void reset();
 };
 
 #endif //ARPEVERYWHERE_UPDOWN_H

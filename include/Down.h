@@ -12,6 +12,8 @@ public:
     Down();
 
     int next(int sustainedNoteCount);
+
+    void reset();
 };
 
 

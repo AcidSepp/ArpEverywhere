@@ -14,6 +14,8 @@ public:
     Jump();
 
     int next(int sustainedNotesCount);
+
+    void reset();
 };
 
 

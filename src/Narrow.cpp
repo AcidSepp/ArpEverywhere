@@ -26,3 +26,8 @@ int Narrow::next(const int sustainedNotesCount) {
 
     return result;
 }
+
+void Narrow::reset() {
+    up = true;
+    index = 0;
+}

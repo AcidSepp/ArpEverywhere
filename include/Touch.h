@@ -15,6 +15,8 @@ public:
     Touch();
 
     int next(byte noteInputOrder[], int noteInputOrderPointer);
+
+    void reset();
 };
 
 

@@ -14,6 +14,8 @@ public:
     Pyramid();
 
     int next(int sustainedNotesCount);
+
+    void reset();
 };
 
 

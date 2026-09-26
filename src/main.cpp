@@ -58,22 +58,29 @@ static Pattern pattern = UP;
 static bool clockFromMidi1 = true;
 static bool midi1Thru = false;
 
-static auto upDown = new UpDown();
-static auto up = new Up();
 static auto down = new Down();
-static auto narrow = new Narrow();
 static auto hourglass = new Hourglass();
-static auto pyramid = new Pyramid();
 static auto jump = new Jump();
+static auto narrow = new Narrow();
+static auto pyramid = new Pyramid();
 static auto rnd2 = new Random2();
 static auto rnd3 = new Random3();
+static auto up = new Up();
+static auto upDown = new UpDown();
 
 static byte noteInputOrder[NOTES_ARRAY_SIZE];
 static int noteInputOrderPointer = 0;
 static auto touch = new Touch();
 
-void resetCounters() {
+static void resetCounters() {
     clockCounter = 0;
+    down->reset();
+    hourglass->reset();
+    jump->reset();
+    narrow->reset();
+    pyramid->reset();
+    up->reset();
+    upDown->reset();
 }
 
 static bool pressedNotesEmpty() {
@@ -133,7 +140,7 @@ static void printNoteInputOrder() {
 
 static void sendNoteOn(const byte note, const byte velocity, const byte channel) {
     if (DEBUG) {
-        Serial.printf("NOTE ON: n=%d\n", note);
+        Serial.printf("Sending NOTE ON: n=%d\n", note);
     }
     if (!midi1Thru) {
         MIDI1.sendNoteOn(note, velocity, channel);
@@ -143,7 +150,7 @@ static void sendNoteOn(const byte note, const byte velocity, const byte channel)
 
 static void sendNoteOff(const byte note, const byte velocity, const byte channel) {
     if (DEBUG) {
-        Serial.printf("NOTE OFF: n=%d\n", note);
+        Serial.printf("Sending NOTE OFF: n=%d\n", note);
     }
     if (!midi1Thru) {
         MIDI1.sendNoteOff(note, velocity, channel);
@@ -260,11 +267,8 @@ void setup() {
 
 static void noteOffAllSustainedNotesExceptPressed() {
     for (int i = 0; i < NOTES_ARRAY_SIZE; i++) {
-        if (!pressedNotes[i]) {
-            Serial.printf("Sending Note OFF: %d\n", i);
+        if (!pressedNotes[i] && sustainedNotes[i]) {
             sendNoteOff(i, 0, CHANNEL);
-        } else {
-            Serial.printf("Not sending Note OFF: %d\n", i);
         }
     }
 }
@@ -350,12 +354,16 @@ void loop() {
         noteOffAllSustainedNotesExceptPressed();
 
         if (holdFunctionActivated) {
-            for (const int sustainedNote: sustainedNotes) {
-                sendNoteOn(sustainedNote, 127, CHANNEL);
+            for (int i = 0; i < NOTES_ARRAY_SIZE; i++) {
+                if (sustainedNotes[i]) {
+                    sendNoteOn(i, 127, CHANNEL);
+                }
             }
         } else {
-            for (const int pressedNote: pressedNotes) {
-                sendNoteOn(pressedNote, 127, CHANNEL);
+            for (int i = 0; i < NOTES_ARRAY_SIZE; i++) {
+                if (pressedNotes[i]) {
+                    sendNoteOn(i, 127, CHANNEL);
+                }
             }
         }
 
@@ -389,6 +397,10 @@ void loop() {
 }
 
 void noteOn(const byte channel, const byte note, const byte velocity) {
+    if (DEBUG) {
+        Serial.printf("Received NOTE ON: n=%d\n", note);
+    }
+
     // if the arp is active, the note will be played automatically, so we need to prevent retriggers in that case
     // In very slow arp speeds it would take a long time until the note sounds, so we play the first not anyways.
     if (!arpActivated || sustainedNotesEmpty()) {
@@ -425,6 +437,10 @@ void noteOn(const byte channel, const byte note, const byte velocity) {
 }
 
 void noteOff(const byte channel, const byte note, const byte velocity) {
+    if (DEBUG) {
+        Serial.printf("Received NOTE OFF: n=%d\n", note);
+    }
+
     if (!holdFunctionActivated) {
         sendNoteOff(note, velocity, CHANNEL);
         sustainedNotes[note] = false;

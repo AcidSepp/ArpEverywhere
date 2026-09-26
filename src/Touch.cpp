@@ -19,3 +19,7 @@ int Touch::next(byte noteInputOrder[], const int noteInputOrderPointer) {
 
     return result;
 }
+
+void Touch::reset() {
+    index = 0;
+}

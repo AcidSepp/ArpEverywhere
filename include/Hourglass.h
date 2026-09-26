@@ -14,6 +14,8 @@ public:
     Hourglass();
 
     int next(int sustainedNotesCount);
+
+    void reset();
 };
 
 

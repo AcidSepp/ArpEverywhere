@@ -25,3 +25,8 @@ int Hourglass::next(const int sustainedNotesCount) {
 
     return result;
 }
+
+void Hourglass::reset() {
+    index = 0;
+    low = true;
+}

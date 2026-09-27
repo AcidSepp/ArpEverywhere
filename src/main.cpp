@@ -29,7 +29,7 @@ constexpr int MIDI_1_THRU_ON_OFF_SWITCH_PIN = 6;
 constexpr int TIME_DIVISION_ROTARY_SWITCH_PIN = A1;
 constexpr int PATTERN_ROTARY_SWITCH_PIN = A2;
 
-constexpr bool DEBUG = true;
+constexpr bool DEBUG = false;
 
 HardwareSerial MidiSerial1(1);
 HardwareSerial MidiSerial2(2);

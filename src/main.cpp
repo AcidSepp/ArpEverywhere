@@ -29,8 +29,7 @@ constexpr int MIDI_1_THRU_ON_OFF_SWITCH_PIN = 6;
 constexpr int TIME_DIVISION_ROTARY_SWITCH_PIN = A1;
 constexpr int PATTERN_ROTARY_SWITCH_PIN = A2;
 
-constexpr byte CHANNEL = 1;
-constexpr bool DEBUG = false;
+constexpr bool DEBUG = true;
 
 HardwareSerial MidiSerial1(1);
 HardwareSerial MidiSerial2(2);
@@ -415,20 +414,24 @@ void noteOn(const byte channel, const byte note, const byte velocity) {
     if (pressedNotesEmpty()) {
         for (int sustainedNotesIndex = 0; sustainedNotesIndex < 128; ++sustainedNotesIndex) {
             if (sustainedNotes[sustainedNotesIndex] && sustainedNotesIndex != note) {
-                MIDI1.sendNoteOff(sustainedNotesIndex, 0, channel);
+                sendNoteOff(sustainedNotesIndex, 0);
             }
         }
         clearSustainedNotes();
         sustainedNotesCount = 0;
         noteInputOrderPointer = 0;
     }
+    if (!pressedNotes[note]) { // only count the note if it is not already pressed
+        pressedNotesCount++;
+    }
     pressedNotes[note] = true;
-    pressedNotesCount++;
+
+    if (!sustainedNotes[note]) { // only count the note if it is not already sustained
+        sustainedNotesCount++;
+    }
     sustainedNotes[note] = true;
-    sustainedNotesCount++;
 
     noteInputOrder[noteInputOrderPointer] = note;
-    Serial.println(note);
     if (noteInputOrderPointer < NOTES_ARRAY_SIZE) {
         noteInputOrderPointer++;
     }

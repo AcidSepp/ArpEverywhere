@@ -168,6 +168,30 @@ static void sendClock() {
     MIDI2.sendClock();
 }
 
+static void sendStart() {
+    if (!midi1Thru) {
+        MIDI1.sendStart();
+    }
+    MIDI2.sendStop();
+}
+
+static void sendStop() {
+    if (!midi1Thru) {
+        MIDI1.sendStop();
+    }
+    MIDI2.sendStop();
+}
+
+static void handleStart() {
+    resetCounters();
+    sendStart();
+}
+
+static void handleStop() {
+    resetCounters();
+    sendStop();
+}
+
 static void midi1AllNotesOff() {
     for (int channel = 0; channel < 10; ++channel) {
         for (int note = 0; note < 128; ++note) {
@@ -217,8 +241,8 @@ void setup() {
         MIDI1.setHandleClock(handleClock);
         MIDI2.setHandleClock(nullptr);
 
-        MIDI1.setHandleStart(resetCounters);
-        MIDI1.setHandleStop(resetCounters);
+        MIDI1.setHandleStart(handleStart);
+        MIDI1.setHandleStop(handleStop);
         MIDI2.setHandleStart(nullptr);
         MIDI2.setHandleStop(nullptr);
     } else {
@@ -229,8 +253,8 @@ void setup() {
 
         MIDI1.setHandleStart(nullptr);
         MIDI1.setHandleStop(nullptr);
-        MIDI2.setHandleStart(resetCounters);
-        MIDI2.setHandleStop(resetCounters);
+        MIDI2.setHandleStart(handleStart);
+        MIDI2.setHandleStop(handleStop);
     }
 
     pinMode(LED_BUILTIN, OUTPUT);

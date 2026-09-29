@@ -161,6 +161,13 @@ static void sendNoteOff(const byte note, const byte velocity) {
     }
 }
 
+static void sendClock() {
+    if (!midi1Thru) {
+        MIDI1.sendClock();
+    }
+    MIDI2.sendClock();
+}
+
 static void midi1AllNotesOff() {
     for (int channel = 0; channel < 10; ++channel) {
         for (int note = 0; note < 128; ++note) {
@@ -421,12 +428,14 @@ void noteOn(const byte channel, const byte note, const byte velocity) {
         sustainedNotesCount = 0;
         noteInputOrderPointer = 0;
     }
-    if (!pressedNotes[note]) { // only count the note if it is not already pressed
+    if (!pressedNotes[note]) {
+        // only count the note if it is not already pressed
         pressedNotesCount++;
     }
     pressedNotes[note] = true;
 
-    if (!sustainedNotes[note]) { // only count the note if it is not already sustained
+    if (!sustainedNotes[note]) {
+        // only count the note if it is not already sustained
         sustainedNotesCount++;
     }
     sustainedNotes[note] = true;
@@ -458,6 +467,8 @@ void noteOff(const byte channel, const byte note, const byte velocity) {
 }
 
 static void handleClock() {
+    sendClock();
+
     // Read the rotary switch every 1/4 note, this should suffice in accuracy
     if (clockCounter % _1_4 == 0) {
         const Pattern newPattern =

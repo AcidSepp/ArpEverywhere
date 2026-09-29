@@ -16,6 +16,8 @@
 #include "Up.h"
 #include "UpDown.h"
 
+constexpr bool DEBUG = false;
+
 constexpr int MIDI_1_RX_PIN = 2;
 constexpr int MIDI_1_TX_PIN = 3;
 constexpr int MIDI_2_RX_PIN = 4;
@@ -28,8 +30,6 @@ constexpr int MIDI_1_THRU_ON_OFF_SWITCH_PIN = 6;
 
 constexpr int TIME_DIVISION_ROTARY_SWITCH_PIN = A1;
 constexpr int PATTERN_ROTARY_SWITCH_PIN = A2;
-
-constexpr bool DEBUG = true;
 
 HardwareSerial MidiSerial1(1);
 HardwareSerial MidiSerial2(2);

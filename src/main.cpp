@@ -29,7 +29,7 @@ constexpr int MIDI_1_THRU_ON_OFF_SWITCH_PIN = 6;
 constexpr int TIME_DIVISION_ROTARY_SWITCH_PIN = A1;
 constexpr int PATTERN_ROTARY_SWITCH_PIN = A2;
 
-constexpr bool DEBUG = false;
+constexpr bool DEBUG = true;
 
 HardwareSerial MidiSerial1(1);
 HardwareSerial MidiSerial2(2);
@@ -162,6 +162,9 @@ static void sendNoteOff(const byte note, const byte velocity) {
 }
 
 static void sendClock() {
+    if (DEBUG) {
+        Serial.printf("Sending CLOCK\n");
+    }
     if (!midi1Thru) {
         MIDI1.sendClock();
     }
@@ -169,13 +172,20 @@ static void sendClock() {
 }
 
 static void sendStart() {
+    if (DEBUG) {
+        Serial.printf("Sending START\n");
+    }
     if (!midi1Thru) {
         MIDI1.sendStart();
     }
-    MIDI2.sendStop();
+    MIDI2.sendStart();
 }
 
 static void sendStop() {
+    if (DEBUG) {
+        Serial.printf("Sending STOP\n");
+    }
+
     if (!midi1Thru) {
         MIDI1.sendStop();
     }
@@ -183,11 +193,19 @@ static void sendStop() {
 }
 
 static void handleStart() {
+    if (DEBUG) {
+        Serial.printf("Received START\n");
+    }
+
     resetCounters();
     sendStart();
 }
 
 static void handleStop() {
+    if (DEBUG) {
+        Serial.printf("Received STOP\n");
+    }
+
     resetCounters();
     sendStop();
 }
@@ -206,6 +224,30 @@ static void midi2AllNotesOff() {
             MIDI2.sendNoteOff(note, 0, channel);
         }
     }
+}
+
+static void setMidi1AsClockSource() {
+    clockFromMidi1 = true;
+    Serial.println("Clock Source: MIDI 1");
+    MIDI1.setHandleClock(handleClock);
+    MIDI2.setHandleClock(nullptr);
+
+    MIDI1.setHandleStart(handleStart);
+    MIDI1.setHandleStop(handleStop);
+    MIDI2.setHandleStart(nullptr);
+    MIDI2.setHandleStop(nullptr);
+}
+
+static void setMidi2AsClockSource() {
+    clockFromMidi1 = false;
+    Serial.println("Clock Source: MIDI 2");
+    MIDI1.setHandleClock(nullptr);
+    MIDI2.setHandleClock(handleClock);
+
+    MIDI1.setHandleStart(nullptr);
+    MIDI1.setHandleStop(nullptr);
+    MIDI2.setHandleStart(handleStart);
+    MIDI2.setHandleStop(handleStop);
 }
 
 void setup() {
@@ -236,25 +278,9 @@ void setup() {
 
     pinMode(CLOCK_SRC_SWITCH_PIN, INPUT);
     if (digitalRead(CLOCK_SRC_SWITCH_PIN) == HIGH) {
-        clockFromMidi1 = true;
-        Serial.println("Clock Source: MIDI 1");
-        MIDI1.setHandleClock(handleClock);
-        MIDI2.setHandleClock(nullptr);
-
-        MIDI1.setHandleStart(handleStart);
-        MIDI1.setHandleStop(handleStop);
-        MIDI2.setHandleStart(nullptr);
-        MIDI2.setHandleStop(nullptr);
+        setMidi1AsClockSource();
     } else {
-        clockFromMidi1 = false;
-        Serial.println("Clock Source: MIDI 2");
-        MIDI1.setHandleClock(nullptr);
-        MIDI2.setHandleClock(handleClock);
-
-        MIDI1.setHandleStart(nullptr);
-        MIDI1.setHandleStop(nullptr);
-        MIDI2.setHandleStart(handleStart);
-        MIDI2.setHandleStop(handleStop);
+        setMidi2AsClockSource();
     }
 
     pinMode(LED_BUILTIN, OUTPUT);
@@ -313,22 +339,14 @@ void loop() {
 
     // midi 2 was the clock source and now midi 1 is the clock source
     if (!oldClockFromMidi1 && newClockFromMidi1) {
-        clockFromMidi1 = true;
-        Serial.println("Clock Source: MIDI 1");
-        MIDI1.setHandleClock(handleClock);
-        MIDI2.setHandleClock(nullptr);
-
+        setMidi1AsClockSource();
         // add a little delay, to debounce the clock source switch
         delay(50);
     }
 
     // midi 1 was the clock source and now midi 2 is the clock source
     if (oldClockFromMidi1 && !newClockFromMidi1) {
-        clockFromMidi1 = false;
-        Serial.println("Clock Source: MIDI 2");
-        MIDI1.setHandleClock(nullptr);
-        MIDI2.setHandleClock(handleClock);
-
+        setMidi2AsClockSource();
         // add a little delay, to debounce the clock source switch
         delay(50);
     }

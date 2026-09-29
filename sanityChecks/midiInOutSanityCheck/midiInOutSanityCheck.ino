@@ -11,25 +11,57 @@ HardwareSerial MidiSerial2(2);
 MIDI_CREATE_INSTANCE(HardwareSerial, MidiSerial1, MIDI1);
 MIDI_CREATE_INSTANCE(HardwareSerial, MidiSerial2, MIDI2);
 
-void noteOn1(const byte channel, const byte note, const byte velocity) {
+static void handleClock1() {
+    Serial.printf("MIDI_IN_1\tCLOCK\n");
+    MIDI1.sendClock();
+}
+
+
+static void handleStart1() {
+    Serial.printf("MIDI_IN_1\tSTART\n");
+    MIDI1.sendStart();
+}
+
+static void handleStop1() {
+    Serial.printf("MIDI_IN_1\tSTOP\n");
+    MIDI1.sendStop();
+}
+
+static void handleClock2() {
+    Serial.printf("MIDI_IN_2\tCLOCK\n");
+    MIDI2.sendClock();
+}
+
+
+static void handleStart2() {
+    Serial.printf("MIDI_IN_2\tSTART\n");
+    MIDI2.sendStart();
+}
+
+static void handleStop2() {
+    Serial.printf("MIDI_IN_2\tSTOP\n");
+    MIDI2.sendStop();
+}
+
+static void noteOn1(const byte channel, const byte note, const byte velocity) {
     digitalWrite(LED_BUILTIN, HIGH);
     Serial.printf("MIDI_IN_1\tNOTE ON \tChannel=%d\tNote=%d\t\tVelocity=%d\n", channel, note, velocity);
     MIDI1.sendNoteOn(note, velocity, channel);
 }
 
-void noteOff1(const byte channel, const byte note, const byte velocity) {
+static void noteOff1(const byte channel, const byte note, const byte velocity) {
     digitalWrite(LED_BUILTIN, LOW);
     Serial.printf("MIDI_IN_1\tNOTE OFF\tChannel=%d\tNote=%d\t\tVelocity=%d\n", channel, note, velocity);
     MIDI1.sendNoteOff(note, velocity, channel);
 }
 
-void noteOn2(const byte channel, const byte note, const byte velocity) {
+static void noteOn2(const byte channel, const byte note, const byte velocity) {
     digitalWrite(LED_BUILTIN, HIGH);
     Serial.printf("MIDI_IN_2\tNOTE ON \tChannel=%d\tNote=%d\t\tVelocity=%d\n", channel, note, velocity);
     MIDI2.sendNoteOn(note, velocity, channel);
 }
 
-void noteOff2(const byte channel, const byte note, const byte velocity) {
+static void noteOff2(const byte channel, const byte note, const byte velocity) {
     digitalWrite(LED_BUILTIN, LOW);
     Serial.printf("MIDI_IN_2\tNOTE OFF\tChannel=%d\tNote=%d\t\tVelocity=%d\n", channel, note, velocity);
     MIDI2.sendNoteOff(note, velocity, channel);
@@ -43,12 +75,18 @@ void setup() {
     MIDI1.turnThruOff();
     MIDI1.setHandleNoteOn(noteOn1);
     MIDI1.setHandleNoteOff(noteOff1);
+    MIDI1.setHandleStart(handleStart1);
+    MIDI1.setHandleStop(handleStop1);
+    MIDI1.setHandleClock(handleClock1);
 
     MidiSerial2.begin(31250, SERIAL_8N1, MIDI_2_RX_PIN, MIDI_2_TX_PIN);
     MIDI2.begin(MIDI_CHANNEL_OMNI);
     MIDI2.turnThruOff();
     MIDI2.setHandleNoteOn(noteOn2);
     MIDI2.setHandleNoteOff(noteOff2);
+    MIDI2.setHandleStart(handleStart2);
+    MIDI2.setHandleStop(handleStop2);
+    MIDI2.setHandleClock(handleClock2);
 
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
